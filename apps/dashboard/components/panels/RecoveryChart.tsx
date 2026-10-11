@@ -8,7 +8,7 @@ import type { RecoveryPoint } from "@rxsolve/contracts";
 import { Panel } from "@/components/ui/Panel";
 import { type PanelProps, usd } from "./types";
 
-const PAD = { top: 16, right: 16, bottom: 26, left: 58 };
+const PAD = { top: 16, right: 16, bottom: 26, left: 76 };
 /** Never draw less than two minutes of time axis, so one settlement reads as a step, not a vertical spike. */
 const MIN_SPAN_MS = 120_000;
 
