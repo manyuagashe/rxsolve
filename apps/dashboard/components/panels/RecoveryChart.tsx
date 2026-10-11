@@ -78,11 +78,11 @@ export function RecoveryChart({ live }: PanelProps) {
       id="chart"
       title="Recovered over time"
       subtitle={`Each step is a recovery · ${points.reduce((n, p) => n + p.settlements, 0)} so far`}
-      aside={<button type="button" aria-pressed={showTable} onClick={() => setShowTable((v) => !v)}>Table</button>}
+      aside={<button type="button" aria-pressed={showTable} onClick={() => setShowTable((v) => !v)}>{showTable ? "Chart" : "Table"}</button>}
       bare
       className="chart"
     >
-      <div ref={box} className="chart__plot">
+      <div ref={box} className="chart__plot" hidden={showTable}>
         {!points.length ? <p className="empty" style={{ height: H }}>No recoveries yet.</p> : (
           <svg width={width} height={H} role="img" aria-label={`Cumulative recovered dollars, now ${usd(total)}`} onMouseLeave={() => setHover(null)}>
             {ticks.map((v) => (
@@ -123,7 +123,7 @@ export function RecoveryChart({ live }: PanelProps) {
       </div>
       <p className="caption">Source: {source || "…"}</p>
       {showTable && (
-      <div className="chart__table">
+      <div className="chart__table" role="region" aria-label="Recoveries by time bucket" tabIndex={0}>
         <table>
           <thead><tr><th align="left">Bucket</th><th align="right">Recovered</th><th align="right">Fees</th><th align="right">Recoveries</th><th align="right">Total</th></tr></thead>
           <tbody>

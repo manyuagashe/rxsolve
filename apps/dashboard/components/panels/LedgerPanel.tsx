@@ -39,9 +39,9 @@ export function LedgerPanel({ live }: PanelProps) {
             const change = balanceChange(balance, baseline.current?.balances[key]);
             const tone = change && change > 0 ? "up" : change && change < 0 ? "down" : "flat";
             return (
-              <li className="account" key={key}>
-                <div>
-                  <strong>{info.role ? `${info.name} · ${info.role}` : info.name}</strong>
+              <li className="account" key={key} title={info.role ? `${info.name}: ${info.role}` : undefined}>
+                <div className="account__who">
+                  <strong>{info.name}</strong>
                   <small className="muted">{info.holder}</small>
                 </div>
                 <div className="account__right">
