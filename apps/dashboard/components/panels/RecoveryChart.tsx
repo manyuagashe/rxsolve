@@ -8,7 +8,6 @@ import type { RecoveryPoint } from "@rxsolve/contracts";
 import { Panel } from "@/components/ui/Panel";
 import { type PanelProps, usd } from "./types";
 
-const H = 300;
 const PAD = { top: 12, right: 12, bottom: 22, left: 52 };
 
 const clock = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
@@ -25,6 +24,7 @@ export function RecoveryChart({ live }: PanelProps) {
   const [source, setSource] = useState<string>("");
   const [hover, setHover] = useState<number | null>(null);
   const [width, setWidth] = useState(480);
+  const [H, setH] = useState(300);
   const box = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -38,7 +38,10 @@ export function RecoveryChart({ live }: PanelProps) {
 
   useEffect(() => {
     if (!box.current) return;
-    const ro = new ResizeObserver(([e]) => setWidth(Math.max(240, e!.contentRect.width)));
+    const ro = new ResizeObserver(([e]) => {
+      setWidth(Math.max(240, e!.contentRect.width));
+      setH(Math.max(120, e!.contentRect.height));
+    });
     ro.observe(box.current);
     return () => ro.disconnect();
   }, []);
