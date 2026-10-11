@@ -33,7 +33,8 @@ export function LedgerPanel({ live }: PanelProps) {
     <Panel id="ledger" title="Ledger" aside={<span className="label-tracked">Since this page loaded</span>} bare className="ledger">
       {!ledger ? <p className="empty">Waiting for balances…</p> : (
         <ul className="plain accounts">
-          {accountOrder(Object.keys(ledger.balances)).map((key) => {
+          {/* RxSolve cannot see a PBM's books; payer accounts exist only in the sandbox to post transfers. */}
+          {accountOrder(Object.keys(ledger.balances).filter((k) => !k.toUpperCase().startsWith("PBM"))).map((key) => {
             const balance = ledger.balances[key];
             const info = accountInfo(key);
             const change = balanceChange(balance, baseline.current?.balances[key]);

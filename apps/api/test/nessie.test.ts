@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import type { Transfer } from "@rxsolve/contracts";
-import { NessieLedger } from "../src/ledger/nessie";
+import { DEMO_OPENINGS, NessieLedger } from "../src/ledger/nessie";
 
 type Json = Record<string, unknown>;
 type Fetcher = (input: URL, init?: RequestInit) => Promise<Response>;
@@ -168,6 +168,15 @@ test("opening balances are sent as integer cents and balances return dollars", a
   const create = fake.requests.find((request) => request.method === "POST" && request.path.endsWith("/accounts"))!;
   expect(create.body?.balance).toBe(10_000_000);
   expect(await ledger.balances()).toEqual({ "PH-MEADOWBROOK": 100_000 });
+});
+
+test("demo openings give each actor its own balance and unlisted ids fall back", async () => {
+  const fake = fakeNessie();
+  const ledger = new NessieLedger({ ...options(fake), openings: DEMO_OPENINGS, openingBalance: 5_000 });
+  await ledger.ensureAccounts(["PH-MEADOWBROOK", "RXSOLVE-PLATFORM", "PBM-PORTAL", "OTHER"]);
+  expect(await ledger.balances()).toEqual({
+    "PH-MEADOWBROOK": 48_250, "RXSOLVE-PLATFORM": 12_000, "PBM-PORTAL": 2_000_000, OTHER: 5_000,
+  });
 });
 
 test("fractional cents survive a settlement-shaped transfer pair", async () => {

@@ -7,7 +7,7 @@
 import type { Transfer } from "@rxsolve/contracts";
 import { config } from "../config";
 import { LocalLedger } from "./local";
-import { NessieLedger } from "./nessie";
+import { DEMO_OPENINGS, NessieLedger } from "./nessie";
 
 export interface Ledger {
   ensureAccounts(accountIds: string[]): Promise<void>;
@@ -18,7 +18,7 @@ export interface Ledger {
 
 let ledger: Ledger | null = null;
 export function getLedger(): Ledger {
-  ledger ??= config.ledgerBackend === "nessie" ? new NessieLedger() : new LocalLedger();
+  ledger ??= config.ledgerBackend === "nessie" ? new NessieLedger({ openings: DEMO_OPENINGS }) : new LocalLedger();
   return ledger;
 }
 export function resetLedger() { ledger = null; }

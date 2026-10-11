@@ -21,14 +21,24 @@ type NessieOptions = {
   baseUrl?: string;
   version?: string;
   openingBalance?: number;
+  /** Per-account opening balances by logical id; accounts not listed fall back to `openingBalance`. */
+  openings?: Record<string, number>;
   fetch?: NessieFetch;
 };
 
 const DEFAULT_BASE_URL = "https://api.nessieisreal.com";
 const DEFAULT_OPENING_BALANCE = 100_000;
-// "RxSolve Demo" holds the pre-cents accounts (opening balance stored in dollars) and a PBM-PORTAL account with
-// a withdrawal Nessie stored without a status, which makes its withdrawal list unreadable. Fresh customer, fresh accounts.
-const SANDBOX_CUSTOMER = { first_name: "RxSolve", last_name: "Ledger" };
+/** Demo openings: a pharmacy operating account, a small platform account, and large payer accounts. */
+export const DEMO_OPENINGS: Record<string, number> = {
+  "PH-MEADOWBROOK": 48_250,
+  "RXSOLVE-PLATFORM": 12_000,
+  "PBM-PORTAL": 2_000_000,
+  "PBM-EMAIL": 2_000_000,
+  "PBM-FAX": 2_000_000,
+};
+// Earlier customers ("RxSolve Demo", "RxSolve Ledger") hold accounts opened at the single $100,000 balance and
+// rehearsal transactions. A new customer name gives fresh accounts at the per-account openings below.
+const SANDBOX_CUSTOMER = { first_name: "RxSolve", last_name: "Ledger2" };
 
 function asObject(value: unknown): JsonObject | null {
   return value !== null && typeof value === "object" && !Array.isArray(value)
@@ -92,6 +102,7 @@ export class NessieLedger implements Ledger {
   private readonly baseUrl: string;
   private readonly version: string;
   private readonly openingBalance: number;
+  private readonly openings: Record<string, number>;
   private readonly fetcher: NessieFetch;
   private customerId: string | null = null;
   private readonly accountIds = new Map<string, string>();
@@ -101,6 +112,7 @@ export class NessieLedger implements Ledger {
     this.baseUrl = (options.baseUrl ?? DEFAULT_BASE_URL).replace(/\/+$/, "");
     this.version = options.version ?? config.nessieVersion;
     this.openingBalance = options.openingBalance ?? DEFAULT_OPENING_BALANCE;
+    this.openings = options.openings ?? {};
     this.fetcher = options.fetch ?? fetch;
   }
 
@@ -185,7 +197,7 @@ export class NessieLedger implements Ledger {
             type: "Checking",
             nickname: logicalId,
             rewards: 0,
-            balance: Math.round(this.openingBalance * 100),
+            balance: Math.round((this.openings[logicalId] ?? this.openingBalance) * 100),
           }),
         });
         remoteId = entityId(created);
