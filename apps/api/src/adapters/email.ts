@@ -8,6 +8,7 @@ import type { Claim, Decision, DenialReason, Evidence, Reply, Ticket } from "@rx
 import { EVIDENCE_DIR } from "../agents/packet";
 import { safeId, writeArtifact } from "../artifacts";
 import { config } from "../config";
+import { drugName } from "../reference";
 import { record } from "../transcript";
 import type { ChannelAdapter } from "./index";
 
@@ -57,12 +58,26 @@ export class EmailAdapter implements ChannelAdapter {
     return { mail, missing };
   }
 
+  /** One prose paragraph built only from evidence values; no colons, so the inbox door never reads it as a field. */
+  private summary(claim_id: string, ev: Evidence): string {
+    const f = ev.fields;
+    const money = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? `$${v.toFixed(2)}` : null);
+    const drug = f.ndc ? drugName(String(f.ndc)) : null;
+    const what = [`claim ${claim_id}`, drug && `for ${drug}`, f.fill_date && `filled ${f.fill_date}`].filter(Boolean).join(" ");
+    const paid = money(f.paid_amount), cost = money(f.acquisition_cost);
+    const gap = paid && cost ? `The claim paid ${paid} against an acquisition cost of ${cost}. ` : "";
+    return `We are appealing the reimbursement on ${what}. ${gap}The shortfall is $${ev.delta.toFixed(2)}, and we are relying on ${ev.statute}.`;
+  }
+
   private async send(claim_id: string, pbm: string, ev: Evidence, intro: string, thread?: string) {
     const { mail, missing } = await this.files(ev.attachments);
     const lines = [
-      intro, "", `Claim: ${claim_id}`, `Statute: ${ev.statute}`, `Amount appealed: ${ev.delta.toFixed(2)}`,
+      `Hello ${pbm} appeals team,`, "", intro, "", this.summary(claim_id, ev), "",
+      ev.attachments.length ? `The supporting documents are attached (${ev.attachments.join(", ")}).` : "No documents are attached.",
+      "", "Appeal details",
+      `Claim: ${claim_id}`, `Statute: ${ev.statute}`, `Amount appealed: ${ev.delta.toFixed(2)}`,
       ...Object.entries(ev.fields).map(([k, v]) => `${k}: ${v === null || v === undefined ? "" : String(v)}`),
-      "", `Attachments: ${ev.attachments.join(", ") || "none"}`,
+      "", `Attachments: ${ev.attachments.join(", ") || "none"}`, "", "Regards,", `${config.pharmacyId} pharmacy`,
     ];
     const msg = {
       from: this.opts.from ?? `appeals@${config.pharmacyId.toLowerCase()}.example`, to: `appeals@${pbm.toLowerCase()}.example`,
