@@ -71,6 +71,16 @@ test("artifacts map to evidence, door, decision and refile nodes", () => {
   expect(JSON.stringify(a)).not.toContain("RXS-2");
 });
 
+test("an emailed appeal shows the letter snapshot and no separate fields table", () => {
+  const view: ClaimView = { claim, evidence: ev, actions: [], decisions: [] };
+  const model = { taken: new Set(), rounds: [] };
+  const msgs = [msg({ channel: "email", attachments: ["email_sent_RXS-1_EML-1.txt"], meta: { ticket_id: "EML-1", fields: { ndc: "1" } } })];
+  const a = nodeArtifacts(model as never, view, msgs);
+  const items = a.door_email ?? a.door ?? [];
+  expect(items.map((i) => i.type)).toEqual(["file"]);
+  expect(items[0]).toMatchObject({ role: "email_sent", label: "Email we sent" });
+});
+
 test("fax and email replies attach to the decision node without a raw text duplicate", () => {
   const view: ClaimView = {
     claim, evidence: ev, actions: [],

@@ -111,7 +111,9 @@ export function nodeArtifacts(
     outIdx++;
     const f = formFields(m);
     put(node, ...files(m, evNames));
-    if (f) put(node, { type: "fields", label: "Fields filed", fields: f });
+    // An emailed appeal carries its fields inside the letter snapshot, so a separate table would only repeat them.
+    const letter = m.attachments.some((n) => n.startsWith("email_sent_"));
+    if (f && !letter) put(node, { type: "fields", label: "Fields filed", fields: f });
   }
 
   // Inbound messages pair with decisions by order: a refile can keep the same ticket id across rounds.
