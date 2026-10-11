@@ -4,7 +4,7 @@ import {
   scanOpportunityCsv,
   type SuggestedHeaderMapping,
 } from "../src/opportunity-scan";
-import { coreRoutes } from "../src/routes/core";
+import { scanRoutes } from "../src/routes/scan";
 
 const CSV = `Claim ID,Fill Date,NDC,Drug,PBM,State,Total Paid,Acquisition Cost,Invoice Number,Invoice Date,Appeal Deadline
 HIST-001,2026-09-15,00011122233,Metformin 500 mg,PBM_PORTAL,NC,6.40,12.80,INV-1001,2026-09-01,2026-10-20
@@ -119,7 +119,7 @@ BAD-1,2026-10-01,12345,Example Drug,PBM_EMAIL,NC,unknown,9.00,INV-1,2026-09-30,2
   });
 
   test("exposes the scan over HTTP without persisting or filing claims", async () => {
-    const response = await coreRoutes["/api/opportunity-scan"].POST(new Request("http://local/api/opportunity-scan", {
+    const response = await scanRoutes["/api/opportunity-scan"].POST(new Request("http://local/api/opportunity-scan", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ csv: CSV, now: "2026-10-11T12:00:00Z" }),
@@ -132,7 +132,7 @@ BAD-1,2026-10-01,12345,Example Drug,PBM_EMAIL,NC,unknown,9.00,INV-1,2026-09-30,2
   });
 
   test("returns an actionable 400 for invalid scan input", async () => {
-    const response = await coreRoutes["/api/opportunity-scan"].POST(new Request("http://local/api/opportunity-scan", {
+    const response = await scanRoutes["/api/opportunity-scan"].POST(new Request("http://local/api/opportunity-scan", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ csv: "Claim ID\nX" }),

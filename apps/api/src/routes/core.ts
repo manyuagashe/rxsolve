@@ -5,7 +5,6 @@ import { bus } from "../events";
 import { SwitchFeed, toClaim } from "../intake";
 import { ledgerSummary } from "../ledger/settle";
 import { processClaimSafe } from "../orchestrator";
-import { scanOpportunityCsv, suggestOpportunityHeaders } from "../opportunity-scan";
 import { drugName } from "../reference";
 
 const notFound = () => Response.json({ error: "not found" }, { status: 404 });
@@ -29,32 +28,6 @@ export const coreRoutes = {
   },
 
   "/api/claims": { GET: async () => Response.json(await getDb().claims.find()) },
-
-  /**
-   * Analyze historical synthetic/de-identified claims without storing or filing them. A configured
-   * model sees unknown column names only; claim values always stay inside deterministic parsing.
-   */
-  "/api/opportunity-scan": {
-    POST: async (req: Request) => {
-      try {
-        const body = await req.json() as { csv?: unknown; now?: unknown };
-        if (typeof body.csv !== "string" || !body.csv.trim()) {
-          return Response.json({ error: "csv must be a non-empty string" }, { status: 400 });
-        }
-        if (typeof body.now !== "undefined" && (typeof body.now !== "string" || Number.isNaN(Date.parse(body.now)))) {
-          return Response.json({ error: "now must be an ISO date-time" }, { status: 400 });
-        }
-        const result = await scanOpportunityCsv(body.csv, {
-          now: typeof body.now === "string" ? new Date(body.now) : undefined,
-          suggestHeaders: config.agentApiKey ? suggestOpportunityHeaders : undefined,
-        });
-        return Response.json(result);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "Unable to scan this CSV";
-        return Response.json({ error: message }, { status: 400 });
-      }
-    },
-  },
 
   "/api/claims/:id": {
     GET: async (req: Bun.BunRequest<"/api/claims/:id">) => {

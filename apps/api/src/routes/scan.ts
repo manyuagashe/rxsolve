@@ -1,11 +1,35 @@
-/** Scan handoff route. Owner: MasonMines2006 (off-ticket; see docs/STATUS.md). */
+/** Historical opportunity scan routes. Owner: MasonMines2006 (off-ticket; see docs/STATUS.md). */
 import { config } from "../config";
+import { scanOpportunityCsv, suggestOpportunityHeaders } from "../opportunity-scan";
 import { getPolicy } from "../policy";
 import { handoffScanClaims, MAX_HANDOFF_CLAIMS } from "../scan-handoff";
 
 const badRequest = (error: string) => Response.json({ error }, { status: 400 });
 
 export const scanRoutes = {
+  /**
+   * Analyze historical synthetic/de-identified claims without storing or filing them. A configured
+   * model sees unknown column names only; claim values always stay inside deterministic parsing.
+   */
+  "/api/opportunity-scan": {
+    POST: async (req: Request) => {
+      try {
+        const body = await req.json() as { csv?: unknown; now?: unknown };
+        if (typeof body.csv !== "string" || !body.csv.trim()) return badRequest("csv must be a non-empty string");
+        if (typeof body.now !== "undefined" && (typeof body.now !== "string" || Number.isNaN(Date.parse(body.now)))) {
+          return badRequest("now must be an ISO date-time");
+        }
+        const result = await scanOpportunityCsv(body.csv, {
+          now: typeof body.now === "string" ? new Date(body.now) : undefined,
+          suggestHeaders: config.agentApiKey ? suggestOpportunityHeaders : undefined,
+        });
+        return Response.json(result);
+      } catch (error) {
+        return badRequest(error instanceof Error ? error.message : "Unable to scan this CSV");
+      }
+    },
+  },
+
   /** The saved standing authorization, so the scan page can show the limit a handoff runs under. */
   "/api/opportunity-scan/policy": {
     GET: async () => {
