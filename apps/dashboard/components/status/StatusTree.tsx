@@ -3,7 +3,7 @@
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import type { ClaimView } from "@/lib/state";
-import { formatDuration, type NodeStatus, type TreeModel } from "@/lib/tree";
+import { formatDuration, type NodeStatus, nodeLabel, type TreeModel } from "@/lib/tree";
 import { ACTOR_LABEL, type NodeId, splitRid, type TreeNode } from "@/lib/treeShape";
 import { plainAction, plainField, plainReason } from "@/lib/plain";
 import { forkOf, stackExtent } from "@/lib/treeLayout";
@@ -108,7 +108,7 @@ export function StatusTree(props: Props) {
         <button type="button" onClick={() => by(1)} aria-label="Scroll the tree right"><ArrowRight aria-hidden="true" /></button>
       </div>
       <div className="tree-scroll" ref={scroller} tabIndex={0} role="region" aria-label="Decision tree, scrolls sideways">
-        <div className="tree-canvas" ref={canvas}>
+        <div className={`tree-canvas${model.ended ? " tree-canvas--ended" : ""}`} ref={canvas}>
           <svg className="tree-links" ref={links} aria-hidden="true" />
           <ol className="tree tree--root" aria-label="Decision tree" style={{ paddingTop: ext.above * CHIP_SLOT + 8, paddingBottom: ext.below * CHIP_SLOT + 8 }}>
             <Node node={root} {...props} />
@@ -119,13 +119,13 @@ export function StatusTree(props: Props) {
   );
 }
 
-function Chip({ node, status, parent }: { node: TreeNode; status: NodeStatus; parent: NodeId }) {
+function Chip({ node, label, status, parent }: { node: TreeNode; label: string; status: NodeStatus; parent: NodeId }) {
   const [open, setOpen] = useState(false);
   return (
     <li className={`tnode tnode--chip tnode--${status}${open ? " tnode--chip-open" : ""}`}>
-      <button type="button" className="tchip" data-nid={node.id} data-parent={parent} data-state={status} aria-expanded={open} title={node.label} onClick={() => setOpen((o) => !o)}>
+      <button type="button" className="tchip" data-nid={node.id} data-parent={parent} data-state={status} aria-expanded={open} title={label} onClick={() => setOpen((o) => !o)}>
         <span className="tnode__marker" aria-hidden="true" />
-        <span className="tchip__text">{node.label}</span>
+        <span className="tchip__text">{label}</span>
         <span className="sr-only"> ({STATUS_WORD[status]})</span>
       </button>
     </li>
@@ -145,14 +145,14 @@ function Node({ node, model, statuses, view, now, artifacts, sibs }: Props & { n
   const rest = fork.main ? [] : fork.chips;
   const shared = { model, statuses, view, now, artifacts };
   // Taken siblings other than the main one stay on the path as lit chips; their detail lives in the round chains.
-  const chipFor = (parent: NodeId) => (c: TreeNode) => <Chip key={c.id} node={c} status={statuses[c.id] ?? "pending"} parent={parent} />;
+  const chipFor = (parent: NodeId) => (c: TreeNode) => <Chip key={c.id} node={c} label={nodeLabel(c.id, c.label, model.rounds)} status={statuses[c.id] ?? "pending"} parent={parent} />;
 
   return (
     <li className={`tnode tnode--${status}${end}`} aria-current={isActive ? "step" : undefined}>
       <div className="tnode__card" data-nid={node.id} data-parent={sibs?.parent} data-state={status}>
         <span className="tnode__marker" aria-hidden="true" />
         <div className="tnode__body">
-          <span className="tnode__title">{node.label}</span>
+          <span className="tnode__title">{nodeLabel(node.id, node.label, model.rounds)}</span>
           <span className="sr-only"> ({STATUS_WORD[status]})</span>
           <span className="tnode__meta">
             {node.actor && <span className={`tnode__actor tnode__actor--${node.actor}`}>{ACTOR_LABEL[node.actor]}</span>}

@@ -76,7 +76,7 @@ export class EmailAdapter implements ChannelAdapter {
       ev.attachments.length ? `The supporting documents are attached (${ev.attachments.join(", ")}).` : "No documents are attached.",
       "", "Appeal details",
       `Claim: ${claim_id}`, `Statute: ${ev.statute}`, `Amount appealed: ${ev.delta.toFixed(2)}`,
-      ...Object.entries(ev.fields).map(([k, v]) => `${k}: ${v === null || v === undefined ? "" : String(v)}`),
+      ...Object.entries(ev.fields).filter(([, v]) => v !== null && v !== undefined && v !== "").map(([k, v]) => `${k}: ${String(v)}`),
       "", `Attachments: ${ev.attachments.join(", ") || "none"}`, "", "Regards,", `${config.pharmacyId} pharmacy`,
     ];
     const msg = {
@@ -92,7 +92,7 @@ export class EmailAdapter implements ChannelAdapter {
 
   private async out(t: Pick<Ticket, "claim_id" | "pbm">, ev: Evidence, intro: string, thread?: string): Promise<Ticket> {
     const { door, msg, missing } = await this.send(t.claim_id, t.pbm, ev, intro, thread);
-    const sent = `Subject: ${msg.subject}\nTo: ${msg.to}\nIn-Reply-To: ${msg.in_reply_to ?? ""}\n\n${msg.body}\nAttachments: ${ev.attachments.join(", ") || "none"}\n`;
+    const sent = `From: ${msg.from}\nTo: ${msg.to}\nSubject: ${msg.subject}\nIn-Reply-To: ${msg.in_reply_to ?? ""}\n\n${msg.body}\n`;
     const snap = await writeArtifact(this.dir, `email_sent_${safeId(t.claim_id)}_${safeId(door.thread_id)}.txt`, sent);
     await record({
       claim_id: t.claim_id, channel: "email", direction: "out", counterparty: t.pbm,

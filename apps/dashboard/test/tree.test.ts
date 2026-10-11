@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import type { Action, ChannelMessage, Decision, LiveEvent } from "@rxsolve/contracts";
 import type { ClaimView } from "../lib/state";
-import { deriveTree, formatDuration, nodeStatuses, resolveReason } from "../lib/tree";
+import { deriveTree, formatDuration, nodeLabel, nodeStatuses, resolveReason } from "../lib/tree";
 
 const claim = { claim_id: "RXS-1", drug: "Metformin", acquisition_cost: 10, pbm: "PBM_PORTAL" } as ClaimView["claim"];
 const view = (over: Partial<ClaimView> = {}): ClaimView => ({ claim, decisions: [], actions: [], ...over });
@@ -137,4 +137,15 @@ test("the door used is taken and continues into the decision; the others are exc
   expect(st.door_portal).toBe("excluded");
   expect(m.taken.has("door_portal")).toBe(false);
   expect(m.active).toBe("decision_1");
+});
+
+test("missing-field node labels name the actual item once the denial says which", () => {
+  const d = (field: string | null) => ({ claim_id: "C", ticket_id: "T", status: "DENIED", reason: "missing_field", field, delta: null, raw: null }) as never;
+  expect(nodeLabel("missing_field_1", "Missing paper: ask the wholesaler for it", [{ n: 1, decision: d("invoice_date") }]))
+    .toBe("Missing invoice date: ask the wholesaler for it");
+  expect(nodeLabel("refile_mf_1", "File again with the missing paper", [{ n: 1, decision: d("invoice_number") }]))
+    .toBe("File again with the invoice number");
+  expect(nodeLabel("missing_field_2", "Missing paper: ask the wholesaler for it", [{ n: 1, decision: d("invoice_date") }]))
+    .toBe("Missing paper: ask the wholesaler for it");
+  expect(nodeLabel("disputed_1", "Disputed", [{ n: 1, decision: d(null) }])).toBe("Disputed");
 });

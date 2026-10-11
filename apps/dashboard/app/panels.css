@@ -112,16 +112,18 @@ a.btn--ghost {
 
 /* Claims: riveted glass plates */
 .claims-wrap { position: relative; flex: 1 1 auto; min-height: 360px; }
-.claims { grid-auto-rows: max-content; gap: 14px; position: absolute; inset: 0; overflow-y: auto; margin: 0; padding: 2px 8px 12px 2px; align-content: start; }
+.claims { grid-auto-rows: max-content; gap: 8px; position: absolute; inset: 0; overflow-y: auto; margin: 0; padding: 2px 8px 12px 2px; align-content: start; }
 .panel--fill { display: flex; flex-direction: column; min-height: 0; }
 .panel--fill > .claims-wrap { flex: 1 1 0; }
 .claims-wrap > .empty { position: absolute; inset: 0; margin: 0; }
 .claim-plate {
   position: relative;
   display: grid;
-  gap: 2px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 14px;
+  row-gap: 1px;
   overflow: hidden;
-  padding: 20px 22px 16px;
+  padding: 10px 14px 8px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -132,18 +134,20 @@ a.btn--ghost {
 }
 .claim-plate:hover { transform: translateY(-2px); box-shadow: var(--shadow-raised); }
 .claim-plate--quiet { opacity: 0.72; }
-.claim-plate__top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.claim-plate__top { grid-column: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin-bottom: 2px; }
+.claim-plate__drug, .claim-plate > small { grid-column: 1; min-width: 0; }
 .claim-plate__id { color: var(--text-muted); font-size: 0.68rem; }
-.claim-plate__drug { font-size: 1.12rem; line-height: 1.3; }
-.claim-plate__mid { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-top: 14px; }
+.claim-plate__drug { font-size: 1rem; line-height: 1.25; }
+/* Amount and progress sit in a right-hand column beside the three text lines */
+.claim-plate__mid { grid-column: 2; grid-row: 1 / span 3; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 6px; text-align: right; }
 .claim-plate__delta {
   display: inline-block;
-  margin-top: 4px;
+  margin-top: 2px;
   padding: 0 6px;
   color: var(--accent);
   background: var(--money-backing);
   border-radius: 6px;
-  font-size: 1.45rem;
+  font-size: 1.2rem;
   font-weight: 700;
 }
 .claim-plate__foot {
@@ -151,11 +155,12 @@ a.btn--ghost {
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  margin-top: 12px;
-  padding-top: 10px;
+  gap: 4px 8px;
+  grid-column: 1 / -1;
+  margin-top: 6px;
+  padding-top: 6px;
   border-top: 1px solid var(--table-divider);
-  font-size: 0.78rem;
+  font-size: 0.75rem;
 }
 .claim-plate__deadline { display: inline-flex; align-items: center; gap: 6px; color: var(--text-muted); }
 .claim-plate__deadline.tone-bad { color: var(--bad); font-weight: 700; }
@@ -489,6 +494,13 @@ a.attachment:hover { box-shadow: 0 0 0 3px color-mix(in oklab, var(--brand) 30%,
 .artifacts { margin-top: 6px; font-size: 0.85rem; }
 .artifacts > summary { cursor: pointer; color: var(--accent); font-weight: 700; border-radius: var(--radius-sm); width: fit-content; }
 .artifacts__list { display: grid; gap: 10px; margin-top: 6px; }
+/* Floating variant of the list, portalled to the body so the tree's scroll box cannot clip it */
+.artifacts__pop {
+  position: fixed; z-index: 1000; display: grid; gap: 10px; width: min(440px, 70vw); margin: 0; overflow: auto;
+  padding: 12px; font-size: 0.85rem; color: var(--text); background: var(--surface); border: 1px solid var(--brand);
+  border-radius: var(--radius-sm); box-shadow: var(--shadow-raised);
+  backdrop-filter: blur(var(--blur)); -webkit-backdrop-filter: blur(var(--blur));
+}
 .artifact { padding: 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--inset-surface); }
 .artifact__label { margin: 0 0 4px; overflow-wrap: anywhere; }
 .artifact__frame { display: block; width: 100%; height: 320px; border: 1px solid var(--border); background: #fff; }
@@ -586,11 +598,13 @@ a.attachment:hover { box-shadow: 0 0 0 3px color-mix(in oklab, var(--brand) 30%,
 .tree-links .link--taken { stroke: var(--brand); stroke-width: 3; stroke-dasharray: 14 6; filter: drop-shadow(0 0 3px var(--brand)); animation: trace-flow 1.2s linear infinite; }
 .tree-links .link--active { stroke: var(--warn-fill); stroke-width: 3; stroke-dasharray: 8 6; animation: trace-flow 0.8s linear infinite; }
 @keyframes trace-flow { to { stroke-dashoffset: -40; } }
+/* Once the pipeline has ended nothing is in flight: travelled traces are solid and still; untaken ones stay dashed. */
+.tree-canvas--ended .link--taken, .tree-canvas--ended .link--active { stroke-dasharray: none; animation: none; }
 @media (min-width: 900px) { .tree-links { display: block; } }
 
 @media (max-width: 800px) {
   .hero__num { font-size: 2.8rem; }
-  .claim-plate { padding: 18px 16px 14px; }
+  .claim-plate { padding: 10px 12px 8px; }
   .account { flex-wrap: wrap; }
 }
 @media (prefers-reduced-motion: reduce) {
