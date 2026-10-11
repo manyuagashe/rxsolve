@@ -12,7 +12,7 @@ deliberately separate: our spec of a PBM can be wrong; the PBM Sim is the ground
 | `contracts.json` | P1 | Contract rate per unit, keyed `"<plan>|<ndc>"` |
 | `drugs.json` | P3 | Display names for NDCs on the dashboard and cashier terminal |
 
-`invoices.json` holds two demo rows with a deliberate null (NDC 16714029201 `invoice_number`, NDC 60505260901 `invoice_date`) for the RXS-0007/0008 wholesaler beat; the PBM Sim personas require those fields where `specs.json` does not.
+`invoices.json` holds two demo rows with a deliberate null (NDC 16714029201 `invoice_number`, NDC 60505260901 `invoice_date`) for the RXS-0007/0008 wholesaler beat; the PBM Sim personas require those fields where `specs.json` does not. NDC 00093736598 (RXS-0009) has a null `invoice_number` and `wholesaler_unavailable: true`: the wholesaler stub refuses for that NDC only, so the claim is denied for a missing field it can never get and ends ABANDONED with a pharmacist text.
 
 RES-01 is done: every spec and statute carries a cited source and a version. Known caveats:
 

@@ -1,6 +1,7 @@
 "use client";
 /** Static decision tree for one claim: path taken highlighted, other branches dimmed. Owner: P3. */
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import type { ClaimView } from "@/lib/state";
 import { formatDuration, type NodeStatus, type TreeModel } from "@/lib/tree";
 import { ACTOR_LABEL, type NodeId, splitRid, type TreeNode } from "@/lib/treeShape";
@@ -103,8 +104,8 @@ export function StatusTree(props: Props) {
   return (
     <div className="tree-wrap">
       <div className="tree-nav">
-        <button type="button" className="btn btn--ghost btn--sm" onClick={() => by(-1)} aria-label="Scroll the tree left">&larr;</button>
-        <button type="button" className="btn btn--ghost btn--sm" onClick={() => by(1)} aria-label="Scroll the tree right">&rarr;</button>
+        <button type="button" onClick={() => by(-1)} aria-label="Scroll the tree left"><ArrowLeft aria-hidden="true" /></button>
+        <button type="button" onClick={() => by(1)} aria-label="Scroll the tree right"><ArrowRight aria-hidden="true" /></button>
       </div>
       <div className="tree-scroll" ref={scroller} tabIndex={0} role="region" aria-label="Decision tree, scrolls sideways">
         <div className="tree-canvas" ref={canvas}>

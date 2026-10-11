@@ -1,16 +1,81 @@
-/* Presenter's second-device page: plain and utilitarian, nothing shared with RxSolve styling. */
-.presenter-body { margin: 0; padding: 16px; color: #111; background: #f4f4f4; font: 16px/1.4 system-ui, Arial, sans-serif; }
-.presenter { max-width: 760px; margin: 0 auto; display: grid; gap: 12px; }
-.presenter h1 { margin: 0; font-size: 20px; }
-.presenter__note { margin: 0; color: #444; font-size: 14px; }
-.presenter__top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
-.presenter__card { display: grid; gap: 8px; padding: 12px; background: #fff; border: 1px solid #bbb; }
-.presenter__who { margin: 0; font-weight: 700; }
-.presenter__sub { margin: 0; color: #444; font-size: 14px; }
-.presenter__row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.presenter__input { flex: 1 1 280px; min-height: 40px; padding: 0 8px; font: inherit; border: 1px solid #777; }
-.presenter__btn { min-height: 40px; padding: 0 16px; font: inherit; font-weight: 600; color: #fff; background: #1b4f9c; border: 1px solid #123a74; cursor: pointer; }
-.presenter__btn:disabled { background: #8a9bb5; border-color: #8a9bb5; cursor: default; }
-.presenter__btn:focus-visible, .presenter__input:focus-visible { outline: 3px solid #0b57d0; outline-offset: 2px; }
+/*
+ * Presenter's second-device page: a Dark Aero utility skin with big glossy touch targets. It shares no stylesheet
+ * with the RxSolve app (own root layout), so its tokens live here.
+ */
+.presenter-body {
+  --bg: oklch(0.16 0.015 255);
+  --card: oklch(0.2 0.02 255 / 85%);
+  --text: oklch(0.93 0.01 250);
+  --muted: oklch(0.7 0.02 250);
+  --border: oklch(0.7 0.19 45 / 30%);
+  --brand: oklch(0.7 0.19 45);
+  --brand-deep: oklch(0.58 0.2 38);
+  --brand-contrast: oklch(0.99 0.005 60);
+  --bad: oklch(0.7 0.18 27);
+  --grid: oklch(0.7 0.19 45 / 8%);
+  margin: 0;
+  min-height: 100vh;
+  padding: 20px;
+  color: var(--text);
+  background-color: var(--bg);
+  background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 22px 22px;
+  font: 16px/1.45 "Segoe UI", "Frutiger", "Myriad Pro", system-ui, sans-serif;
+  color-scheme: dark;
+}
+.presenter { max-width: 900px; margin: 0 auto; display: grid; gap: 14px; }
+.presenter h1 { margin: 0; font-size: 22px; font-weight: 900; }
+.presenter__note { margin: 0; color: var(--muted); font-size: 14px; }
+.presenter__top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.presenter__card {
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 10px 30px -12px oklch(0 0 0 / 70%), inset 0 1px 0 oklch(0.7 0.19 45 / 30%);
+}
+.presenter__who { margin: 0; font-weight: 800; font-size: 18px; }
+.presenter__sub { margin: 0; color: var(--muted); font-size: 14px; }
+.presenter__row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.presenter__input {
+  flex: 1 1 280px;
+  min-height: 52px;
+  padding: 0 14px;
+  color: var(--text);
+  background: oklch(0.1 0.01 255 / 85%);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: inherit;
+}
+.presenter__btn {
+  position: relative;
+  overflow: hidden;
+  min-height: 52px;
+  padding: 0 24px;
+  color: var(--brand-contrast);
+  background: linear-gradient(180deg, var(--brand), var(--brand-deep));
+  border: 1px solid var(--brand-deep);
+  border-radius: 999px;
+  box-shadow: 0 2px 10px -2px var(--brand), inset 0 1px 0 oklch(1 0 0 / 45%);
+  font: inherit;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.presenter__btn::before {
+  content: "";
+  position: absolute;
+  inset: 1px 1px 55% 1px;
+  border-radius: 999px 999px 40% 40%;
+  background: linear-gradient(180deg, oklch(1 0 0 / 50%), oklch(1 0 0 / 6%));
+  pointer-events: none;
+}
+.presenter__btn:active:not(:disabled) { transform: translateY(1px); box-shadow: inset 0 2px 6px oklch(0 0 0 / 35%); }
+.presenter__btn:disabled { opacity: 0.5; cursor: default; }
+.presenter__btn:focus-visible,
+.presenter__input:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; }
 .presenter__msg { margin: 0; min-height: 1.2em; font-size: 14px; }
-.presenter__msg--bad { color: #a00; }
+.presenter__msg--bad { color: var(--bad); }

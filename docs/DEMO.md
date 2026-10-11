@@ -26,15 +26,16 @@ Three PBM personas, each modeled on a real PBM's public appeal procedure. Open b
 
 0. **Two windows.** Open the pharmacy system at `/pms` (the store's existing dispensing software, simulated) and RxSolve at `/` side by side. Say: "RxSolve sits beside the claim switch and reads the claim feed; the pharmacy changes nothing." Bill a prescription in `/pms`; the claim appears in the RxSolve Claims list on its own.
 0b. **Presenter page.** On a second device open `/presenter` (not linked from the product). It lists only claims waiting on the PBM ("Release", "Release all") or on the wholesaler (reply field, "Send reply"). Hold mode needs `PBM_SIM_HOLD=1` for the PBM sim and `WHOLESALER_STUB=manual` for the API.
-1. **Portal.** A claim underpays. The browser agent fills the Caremark-style form and uploads the invoice. The PBM denies: wholesaler attestation missing (TN rule).
-2. **Remediate.** The agent requests the attestation from the wholesaler on WhatsApp, receives it, refiles through the same form, and the PBM concedes.
-3. **Email and fax, in parallel.** Two more claims are filed to the Express Scripts-style inbox and the OptumRx-style fax line. They resolve on the dashboard; the fax reply is a scanned PDF the agent reads.
-   - **Plain-text wholesaler beat (needs `AGENT_API_KEY`, `WHOLESALER_STUB=manual`, presenter reply or a real SMS).** Ring up `RX-3D5E-0611` (Sertraline, email, claim RXS-0007) or `bun seed RXS-0007`: the PBM denies for a missing invoice number and the agent texts the wholesaler. Reply in plain words, e.g. "Invoice number is INV-55120" or "it's 55120". `RX-8A21-0702` (Montelukast, fax, RXS-0008) asks for the invoice date: reply "dated October 1st, 2026". The model reads the value and must quote it from the reply; with no key only `INV-...` and `YYYY-MM-DD` forms parse.
-4. **Ledger.** Remittance adjustments and fee transfers move real Nessie balances, and the recovered-over-time chart (TigerData continuous aggregate) steps up with each settlement.
-5. **Digest.** The pharmacist's phone receives the daily digest. One word replies. (Stretch: it carries a voice recap.)
-6. **Exception (live).** One claim is outside the standing policy and pings the pharmacist.
-6b. **Historical scan (optional, ~20s).** Open `/scan`, pick **Ready for RxSolve handoff**, run it, and say: "Here is last month's file: this much was underpaid and this much is recoverable." Send the ready claims; they join the same pipeline under the saved $100 policy (three settle, the $130 one waits as an exception, the drug with no invoice is rejected).
-7. **Stretch: phone (ElevenLabs).** On a disputed denial, the agent calls the PBM rep and wins the argument on the statute.
+1. **Cleared claim.** Ring up Amlodipine (`RX-91B2-0377`, NC). The PBM paid at or above cost, so RxSolve takes no action. Say: "Correct claims are left alone."
+2. **Portal, straight through.** Ring up Metformin 1000 (`RX-7F3A-0412`, NC). The claim underpays, the browser agent fills the Caremark-style form with the invoice attached, and the PBM approves in the first round. The ledger moves.
+3. **Email, denied then recovers.** Ring up `RX-3D5E-0611` (Sertraline, claim RXS-0007) or `bun seed RXS-0007`. The PBM denies for a missing invoice number, the agent texts the wholesaler, and the refile is approved.
+   - **Plain-text wholesaler beat (needs `AGENT_API_KEY`, `WHOLESALER_STUB=manual`, presenter reply or a real SMS).** Reply in plain words, e.g. "Invoice number is INV-55120" or "it's 55120". The model reads the value and must quote it from the reply; with no key only `INV-...` and `YYYY-MM-DD` forms parse.
+4. **Email, denied and unrecoverable.** Ring up `RX-5C19-0829` (Losartan, claim RXS-0009). The PBM denies for a missing invoice number, the wholesaler cannot locate it (its invoice line carries `wholesaler_unavailable`, or the presenter types a refusal), the claim is abandoned, and the pharmacist gets a text. The ledger does not move. Say: "When RxSolve cannot fix it, a human hears about it once."
+5. **Fax (optional if time is short).** `RX-8A21-0702` (Montelukast, claim RXS-0008) asks for the invoice date: reply "dated October 1st, 2026". The PBM also disputes once and the agent files a rebuttal; the fax reply is a scanned PDF the agent reads.
+6. **Ledger.** Remittance adjustments and fee transfers move real Nessie balances, and the recovered-over-time chart (TigerData continuous aggregate) steps up with each settlement.
+7. **Digest.** The pharmacist's phone receives the daily digest. One word replies. (Stretch: it carries a voice recap.)
+7b. **Historical scan (optional, ~20s).** Open `/scan`, pick **Ready for RxSolve handoff**, run it, and say: "Here is last month's file: this much was underpaid and this much is recoverable." Send the ready claims; they join the same pipeline under the saved $100 policy (three settle, the $130 one waits as an exception, the drug with no invoice is rejected).
+8. **Stretch: phone (ElevenLabs).** On a disputed denial, the agent calls the PBM rep and wins the argument on the statute.
 
 | Moment | What it proves |
 |---|---|
@@ -45,7 +46,7 @@ Three PBM personas, each modeled on a real PBM's public appeal procedure. Open b
 | One digest a day, one exception | It scales to a flood of claims without spamming a human |
 | Phone call (stretch) | The agent negotiates, not just files |
 
-> **The single most important demo moment.** The agent working a PBM's own door (the portal form filling itself, the denial landing, the missing document fetched, the refile approved) with no human touching it.
+> **The single most important demo moment.** The agent working a PBM's own door (the form filling itself, the denial landing, the missing document fetched, the refile approved) with no human touching it.
 
 ### 20.2 Prize-moment mapping
 
@@ -55,7 +56,7 @@ Three PBM personas, each modeled on a real PBM's public appeal procedure. Open b
 | Nessie | Recovery visibly moving real balances between pharmacy, PBM, and platform accounts |
 | TigerData | The recovered-over-time chart climbing live as settlements land, read from a continuous aggregate over the `ledger_events` hypertable (the chart's caption names the source) |
 | ElevenLabs (stretch) | Only if the stretch lands: voice recap in the digest; phone negotiation with the PBM rep |
-| Frutiger Aero track | Flip the dashboard from dark to light to Frutiger Aero live during the run; the PMS mock at `/pms` keeps its own fixed look, which shows it is a separate system |
+| Frutiger Aero track | Flip the dashboard between Frutiger Aero and Dark Aero live during the run; the PMS mock at `/pms` keeps its own fixed look, which shows it is a separate system |
 
 ## 21. Submission Assets
 

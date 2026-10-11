@@ -8,7 +8,9 @@ import type { RecoveryPoint } from "@rxsolve/contracts";
 import { Panel } from "@/components/ui/Panel";
 import { type PanelProps, usd } from "./types";
 
-const PAD = { top: 12, right: 12, bottom: 22, left: 52 };
+const PAD = { top: 16, right: 16, bottom: 26, left: 58 };
+/** Never draw less than two minutes of time axis, so one settlement reads as a step, not a vertical spike. */
+const MIN_SPAN_MS = 120_000;
 
 const clock = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
@@ -23,6 +25,7 @@ export function RecoveryChart({ live }: PanelProps) {
   const [series, setSeries] = useState<RecoveryPoint[]>([]);
   const [source, setSource] = useState<string>("");
   const [hover, setHover] = useState<number | null>(null);
+  const [showTable, setShowTable] = useState(false);
   const [width, setWidth] = useState(480);
   const [H, setH] = useState(300);
   const box = useRef<HTMLDivElement>(null);
@@ -50,9 +53,10 @@ export function RecoveryChart({ live }: PanelProps) {
   const points = series.map((p) => ({ ...p, total: (running = Math.round((running + p.recovered) * 100) / 100) }));
   const total = points.at(-1)?.total ?? 0;
 
-  const t0 = points.length ? Date.parse(points[0]!.bucket) : 0;
-  const step = points.length > 1 ? Date.parse(points[1]!.bucket) - t0 : 15_000;
+  const first = points.length ? Date.parse(points[0]!.bucket) : 0;
+  const step = points.length > 1 ? Date.parse(points[1]!.bucket) - first : 15_000;
   const t1 = points.length ? Date.parse(points.at(-1)!.bucket) + step : 1;
+  const t0 = Math.min(first, t1 - MIN_SPAN_MS);
   const yMax = niceMax(total);
   const iw = width - PAD.left - PAD.right;
   const ih = H - PAD.top - PAD.bottom;
@@ -70,12 +74,15 @@ export function RecoveryChart({ live }: PanelProps) {
   const h = hover != null ? points[hover] : undefined;
 
   return (
-    <Panel id="chart" title="Recovered over time" aside="each step is a recovery" className="chart">
-      <p className="chart__total">
-        <strong className="money">{usd(total)}</strong>{" "}
-        <span className="muted">across {points.reduce((n, p) => n + p.settlements, 0)} recoveries</span>
-      </p>
-      <div ref={box} className="chart__plot">
+    <Panel
+      id="chart"
+      title="Recovered over time"
+      subtitle={`Each step is a recovery · ${points.reduce((n, p) => n + p.settlements, 0)} so far`}
+      aside={<button type="button" aria-pressed={showTable} onClick={() => setShowTable((v) => !v)}>{showTable ? "Chart" : "Table"}</button>}
+      bare
+      className="chart"
+    >
+      <div ref={box} className="chart__plot" hidden={showTable}>
         {!points.length ? <p className="empty" style={{ height: H }}>No recoveries yet.</p> : (
           <svg width={width} height={H} role="img" aria-label={`Cumulative recovered dollars, now ${usd(total)}`} onMouseLeave={() => setHover(null)}>
             {ticks.map((v) => (
@@ -86,7 +93,13 @@ export function RecoveryChart({ live }: PanelProps) {
             ))}
             <text className="chart__tick" x={PAD.left} y={H - 6}>{clock(points[0]!.bucket)}</text>
             <text className="chart__tick" x={width - PAD.right} y={H - 6} textAnchor="end">{clock(new Date(t1).toISOString())}</text>
-            <path className="chart__area" d={area} />
+            <defs>
+              <linearGradient id="chart-fill" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stopColor="var(--brand)" stopOpacity="0.35" />
+                <stop offset="100%" stopColor="var(--brand)" stopOpacity="0" />
+              </linearGradient>
+            </defs>
+            <path className="chart__area" d={area} fill="url(#chart-fill)" />
             <path className="chart__line" d={d} />
             {points.map((p, i) => {
               const cx = x(Date.parse(p.bucket) + step);
@@ -109,8 +122,8 @@ export function RecoveryChart({ live }: PanelProps) {
         )}
       </div>
       <p className="caption">Source: {source || "…"}</p>
-      <details className="chart__table">
-        <summary>Table</summary>
+      {showTable && (
+      <div className="chart__table" role="region" aria-label="Recoveries by time bucket" tabIndex={0}>
         <table>
           <thead><tr><th align="left">Bucket</th><th align="right">Recovered</th><th align="right">Fees</th><th align="right">Recoveries</th><th align="right">Total</th></tr></thead>
           <tbody>
@@ -123,7 +136,8 @@ export function RecoveryChart({ live }: PanelProps) {
             ))}
           </tbody>
         </table>
-      </details>
+      </div>
+      )}
     </Panel>
   );
 }

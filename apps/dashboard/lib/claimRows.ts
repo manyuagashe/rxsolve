@@ -19,6 +19,10 @@ export type ClaimRow = {
   deadline: string | null;
   settled: boolean;
   quiet: boolean;
+  /** Detected, proof built, filed, PBM decision, paid: lit hexes in the row's progress strip. */
+  progress: [boolean, boolean, boolean, boolean, boolean];
+  /** Time of this claim's latest event, so the row can flash when something new happens. */
+  touched: number | null;
 };
 
 export const prettyPbm = (pbm: string) =>
@@ -41,10 +45,25 @@ const receivedAt = (log: readonly LiveEvent[]): Record<string, number> => {
   return out;
 };
 
+const lastTouched = (log: readonly LiveEvent[]): Record<string, number> => {
+  const out: Record<string, number> = {};
+  for (const e of log) if (e.claim_id) out[e.claim_id] = Date.parse(e.ts);
+  return out;
+};
+
+const progressOf = (v: ClaimView): ClaimRow["progress"] => [
+  v.verdict?.verdict === "UNDERWATER" || (v.stage !== undefined && v.stage !== "CLEARED"),
+  v.evidence !== undefined,
+  v.ticket !== undefined,
+  v.decisions.length > 0,
+  v.stage === "SETTLED",
+];
+
 const isClear = (v: ClaimView) => v.verdict?.verdict === "CLEAR" || v.stage === "CLEARED";
 
 export function buildClaimRows(live: Pick<LiveState, "claims" | "order" | "log">): ClaimRow[] {
   const times = receivedAt(live.log);
+  const touched = lastTouched(live.log);
   const ids = [...new Set([...live.order, ...Object.keys(live.claims)])];
   const rows: ClaimRow[] = ids.flatMap((claimId) => {
     const view = live.claims[claimId];
@@ -65,6 +84,8 @@ export function buildClaimRows(live: Pick<LiveState, "claims" | "order" | "log">
       deadline: view.verdict?.appeal_deadline ?? null,
       settled: stage === "SETTLED",
       quiet: clear,
+      progress: progressOf(view),
+      touched: touched[claimId] ?? null,
     }];
   });
   rows.sort((a, b) => (b.at ?? 0) - (a.at ?? 0));

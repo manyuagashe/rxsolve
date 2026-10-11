@@ -10,7 +10,7 @@ HackNC, MLH Sponsor Challenges, v1.3. October 10, 2026. 24-hour event, 12-hour b
 | Capital One Nessie | Ledger: remittance deposits and fee transfers |
 | TigerData | Database: every collection on Postgres; append-only logs as TimescaleDB hypertables; a continuous aggregate drives the dashboard's recovered-over-time chart |
 | ElevenLabs (stretch) | Voice recap in the digest; phone negotiation with the PBM. Both are stretch goals, built only after the core demo path is green |
-| Frutiger Aero track | Three-way theme switcher on the dashboard: dark, light, and Frutiger Aero |
+| Frutiger Aero track | Two DORFic Frutiger Aero skins on the dashboard (daylight "Frutiger Aero" and "Dark Aero"), switched live |
 
 Related docs: [BUILD_PLAN.md](BUILD_PLAN.md), [TICKETS.md](TICKETS.md), [DEMO.md](DEMO.md), [DECISIONS.md](DECISIONS.md), [STATUS.md](STATUS.md).
 
@@ -62,7 +62,7 @@ The product is channel-agnostic: one detection and evidence core, one adapter pe
 - Wholesaler document requests over WhatsApp/SMS
 - Deadline clock with state-regulator escalation path
 - Nessie settlement: PBM remittance deposit plus contingency fee transfer, backed by an 835-style remittance record
-- RxSolve dashboard with a dark / light / Frutiger Aero theme switcher, plus the separate PMS mock at `/pms`
+- RxSolve dashboard with a Frutiger Aero / Dark Aero theme switcher, plus the separate PMS mock at `/pms`
 - 60-claim seeded history (~18 underwater), spread across the three PBM personas
 - Abandonment logging with reasons, reported honestly
 
@@ -656,21 +656,20 @@ async def settle_recovery(claim: Claim, delta: Decimal, fee_pct: float = 0.25) -
 
 ### 12.1 Theming
 
-One component set, three themes, switched at runtime from a control in the header and persisted per viewer.
+One component set, two themes, switched at runtime from a control in the header and persisted per viewer. Both are DORFic (Daylight, Orange, Red, Futurism, graphic): the industrial sub-genre of Frutiger Aero, ported from the team's Lovable design.
 
 | Theme | Character |
 |---|---|
-| Dark | Low-luminance surfaces, muted accents, the default for the demo room |
-| Light | High-luminance surfaces, same layout and density |
-| Frutiger Aero | Early-2000s gloss: sky and aqua gradients, glassy translucent panels, soft highlights and drop shadows, rounded pill controls, glossy buttons, nature and bubble motifs, skeuomorphic status badges |
+| Frutiger Aero (default) | Daylight white field with a faint hex grid, an orange-to-red light streak and low-poly shards; frosted white glass panels with corner bolts; glossy orange pill buttons; hex status lights; orange monospace money; blueprint-grid chart and decision tree with glowing orange traces |
+| Dark Aero | The same skin on smoked black glass with an orange edge glow and an orange hex grid |
 
 Rules:
 
-- Themes are CSS variables on `data-theme="dark|light|aero"` at the root. Components never hardcode colors, radii, shadows, or backgrounds.
-- Aero is a full skin, not a recolor: it changes surfaces (glass blur, gradients), controls (glossy buttons, pill toggles), and decoration (background imagery, glow), via tokens plus a small set of theme-scoped component styles.
-- Layout, data, and WebSocket behavior are identical across themes. Switching is instant and never reloads.
-- The PMS mock cashier terminal and the pharmacist phone mock are themed too, so the whole demo can flip live.
-- Legibility holds in every theme: text contrast stays accessible on glass panels, and money values never sit on busy imagery.
+- Themes are CSS variables on `data-theme="aero|dark"` at the root (`apps/dashboard/app/globals.css`). Components never hardcode colors, radii, shadows, or backgrounds. A saved choice from the retired Light theme falls back to Frutiger Aero.
+- Status is a hex indicator light plus an icon and a label (`components/ui/Pill.tsx`), never color alone. Orange is the brand, so it never signals a status by itself.
+- Layout, data, and WebSocket behavior are identical across themes. Switching is instant and never reloads. At 1100 px and wider the home page fits one screen with no page scroll.
+- The PMS mock at `/pms` keeps its own fixed legacy look in every theme (it is the store's existing software). The presenter page at `/presenter` has a fixed Dark Aero utility skin with large touch targets.
+- Legibility holds in both themes: words use darker text-safe tones, the bright palette only fills orbs, traces and buttons, and money values sit on a solid backing.
 
 ## 13. Infrastructure
 

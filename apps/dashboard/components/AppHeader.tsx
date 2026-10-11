@@ -1,37 +1,31 @@
 import Link from "next/link";
+import { Check } from "lucide-react";
 import { Hero } from "@/components/Hero";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
+import { Pill } from "@/components/ui/Pill";
 import type { PanelProps } from "@/components/panels/types";
 
-function Logo() {
+/** Brand, live stream status and theme switcher; the recovered-to-date hero sits below unless `compact`. */
+export function AppHeader({ live, compact = false }: PanelProps & { compact?: boolean }) {
   return (
-    <svg className="brand__logo" width="56" height="56" viewBox="0 0 64 64" aria-hidden="true">
-      <circle cx="32" cy="32" r="29" fill="none" stroke="currentColor" strokeWidth="5" />
-      <path d="M18 33 L28 43 L47 21" fill="none" stroke="currentColor" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-/** Brand, recovered-to-date hero, live stream status and theme switcher. */
-export function AppHeader({ live }: PanelProps) {
-  return (
-    <header className="app-header">
-      <div className="brand">
-        <Logo />
-        <div>
-          <h1 className="brand__name">RxSolve</h1>
-          <p className="brand__sub">Meadowbrook Pharmacy</p>
+    <header className={`app-header${compact ? " app-header--compact" : ""}`}>
+      <div className="app-header__top">
+        <Link href="/" className="brand" aria-label="RxSolve home">
+          <span className="hex-orb hex-orb--info hex-orb--lg brand__logo" aria-hidden="true"><Check /></span>
+          <span>
+            <span className="brand__name">RxSolve</span>
+            <span className="brand__sub">Meadowbrook Pharmacy</span>
+          </span>
+        </Link>
+        <div className="app-header__controls">
+          <Link className="btn btn--ghost btn--sm" href="/scan">Scan historical claims</Link>
+          <p className="live-status" role="status" aria-live="polite">
+            <Pill tone={live.connected ? "good" : "info"}>{live.connected ? "Live stream connected" : "Connecting to live stream"}</Pill>
+          </p>
+          <ThemeSwitcher />
         </div>
       </div>
-      <Hero live={live} />
-      <div className="app-header__controls">
-        <Link className="btn btn--ghost btn--sm" href="/scan">Scan historical claims</Link>
-        <p className={`live-status ${live.connected ? "live-status--on" : "live-status--off"}`} role="status" aria-live="polite">
-          <span className="live-status__dot" aria-hidden="true" />
-          {live.connected ? "Live stream connected" : "Connecting to live stream…"}
-        </p>
-        <ThemeSwitcher />
-      </div>
+      {!compact && <Hero live={live} />}
     </header>
   );
 }

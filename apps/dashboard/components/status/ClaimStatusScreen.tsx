@@ -2,6 +2,7 @@
 /** Per-claim status screen (UI-03/UI-04): header, path taken, static tree, time split. Owner: P3. */
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { ArrowLeft, Maximize2, Minimize2 } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
 import { usd } from "@/components/panels/types";
 import { Panel } from "@/components/ui/Panel";
@@ -48,12 +49,19 @@ export function ClaimStatusScreen({ claimId }: { claimId: string }) {
   const artifacts = useMemo(() => (model && view ? nodeArtifacts(model, view, live.messages) : undefined), [model, view, live.messages]);
   const exchange = useMemo(() => exchangeFor(claimId, live.messages, live.phone), [claimId, live.messages, live.phone]);
   const probes = useArtifactProbes(view ? probeNames(view) : []);
+  const [treeFull, setTreeFull] = useState(false);
+  useEffect(() => {
+    if (!treeFull) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setTreeFull(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [treeFull]);
 
   return (
     <div className="dashboard-shell">
-      <AppHeader live={live} />
+      <AppHeader live={live} compact />
       <main className="status-screen" aria-label="Claim status">
-        <Link href="/" className="status-back">Back to all claims</Link>
+        <Link href="/" className="status-back"><ArrowLeft aria-hidden="true" />Back to all claims</Link>
         {!view || !model || !statuses ? (
           <Panel id="status-missing" title="Claim status">
             <p className="empty" role="status">
@@ -67,6 +75,7 @@ export function ClaimStatusScreen({ claimId }: { claimId: string }) {
           <>
             <header className="status-head panel">
               <div>
+                <span className="status-head__id money">{claimId}</span>
                 <h2 className="status-head__drug">{view.claim.drug || "Drug unavailable"}</h2>
                 <p className="caption">{prettyPbm(view.claim.pbm)} · {view.ticket?.channel ? `${doorWord(view.ticket.channel)}` : "not filed yet"}</p>
               </div>
@@ -95,7 +104,17 @@ export function ClaimStatusScreen({ claimId }: { claimId: string }) {
             </header>
 
             <div className="status-grid">
-              <Panel id="status-tree" title="Decision tree" aside="taken path lit, other branches dimmed">
+              <Panel
+                id="status-tree"
+                title="Decision tree"
+                subtitle="Taken path lit, other branches dimmed"
+                className={treeFull ? "tree-panel--full" : ""}
+                aside={
+                  <button type="button" onClick={() => setTreeFull((v) => !v)} aria-pressed={treeFull} aria-label={treeFull ? "Exit full screen" : "Show the tree full screen"}>
+                    {treeFull ? <Minimize2 aria-hidden="true" /> : <Maximize2 aria-hidden="true" />}
+                  </button>
+                }
+              >
                 <StatusTree model={model} statuses={statuses} view={view} now={now} artifacts={artifacts} />
               </Panel>
               <section className="panel panel--stack" aria-labelledby="status-path-title">
@@ -120,7 +139,7 @@ export function ClaimStatusScreen({ claimId }: { claimId: string }) {
                 </details>
               </section>
             </div>
-            <Panel id="status-exchange" title="Exchange" aside="every channel message for this claim, oldest first">
+            <Panel id="status-exchange" title="Exchange" subtitle="Every channel message for this claim, oldest first">
               <ExchangeList messages={exchange} />
             </Panel>
             <Panel id="status-details" title="Claim as received (NCPDP-shaped)">

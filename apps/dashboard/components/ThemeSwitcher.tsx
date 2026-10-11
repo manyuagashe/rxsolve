@@ -1,53 +1,51 @@
 "use client";
-/** Header theme control (UI-07). Persists per viewer and switches without a reload. */
+/** Header theme control (UI-07): Frutiger Aero (daylight DORFic) and Dark Aero. Persists per viewer, no reload. */
 import { useEffect, useState } from "react";
+import { Moon, Sparkles } from "lucide-react";
 
-const THEMES = ["dark", "light", "aero"] as const;
-type Theme = (typeof THEMES)[number];
+const THEMES = [
+  { id: "aero", label: "Frutiger Aero", Icon: Sparkles },
+  { id: "dark", label: "Dark Aero", Icon: Moon },
+] as const;
+type Theme = (typeof THEMES)[number]["id"];
 
-function isTheme(value: string | undefined): value is Theme {
-  return THEMES.includes(value as Theme);
-}
-
-function themeLabel(theme: Theme) {
-  return theme === "aero" ? "Frutiger Aero" : theme[0]!.toUpperCase() + theme.slice(1);
-}
+const isTheme = (value: string | undefined): value is Theme => THEMES.some((t) => t.id === value);
 
 export function ThemeSwitcher() {
-  const [theme, setTheme] = useState<Theme>("dark");
+  const [theme, setTheme] = useState<Theme>("aero");
 
   useEffect(() => {
-    const activeTheme = document.documentElement.dataset.theme;
-    if (isTheme(activeTheme)) setTheme(activeTheme);
+    const active = document.documentElement.dataset.theme;
+    if (isTheme(active)) setTheme(active);
   }, []);
 
-  const pick = (nextTheme: Theme) => {
-    document.documentElement.dataset.theme = nextTheme;
+  const pick = (next: Theme) => {
+    document.documentElement.dataset.theme = next;
     try {
-      localStorage.setItem("rxsolve-theme", nextTheme);
+      localStorage.setItem("rxsolve-theme", next);
     } catch {
       // The in-memory theme still applies when storage is unavailable.
     }
-    setTheme(nextTheme);
+    setTheme(next);
   };
 
+  const current = THEMES.find((t) => t.id === theme)!;
   return (
     <div className="theme-switcher" role="group" aria-label="Color theme">
-      {THEMES.map((option) => (
+      {THEMES.map(({ id, label, Icon }) => (
         <button
-          key={option}
+          key={id}
           className="theme-switcher__option"
           type="button"
-          aria-label={`Use ${themeLabel(option)} theme`}
-          aria-pressed={theme === option}
-          onClick={() => pick(option)}
+          aria-label={`Use ${label} theme`}
+          aria-pressed={theme === id}
+          onClick={() => pick(id)}
         >
-          {themeLabel(option)}
+          <Icon aria-hidden="true" />
+          {label}
         </button>
       ))}
-      <span className="sr-only" aria-live="polite" aria-atomic="true">
-        Theme: {themeLabel(theme)}
-      </span>
+      <span className="sr-only" aria-live="polite" aria-atomic="true">Theme: {current.label}</span>
     </div>
   );
 }

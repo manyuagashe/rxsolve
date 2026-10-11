@@ -239,13 +239,13 @@ Per claim, render the exchange on its channel (portal fill, email, fax, wholesal
 
 **Done when:** the exchange renders live, step by step, during a full run-through on all three channels.
 
-### UI-07 | T+9 to T+10 | Theme system: dark, light, Frutiger Aero
+### UI-07 | T+9 to T+10 | Theme system: Frutiger Aero and Dark Aero (DORFic)
 
 Token-based theming (DESIGN.md section 12.1). Define the variable set once (surfaces, text, accent, radius, shadow, blur, gradients), a switcher in the header, and the Aero skin: glass panels, gradients, glossy buttons, pill controls, background imagery. Persist the choice per viewer.
 
 Start the token layer in UI-01 so no component hardcodes style values; this ticket is the skins and the switcher.
 
-**Done when:** all panels, the PMS mock, and the pharmacist phone render correctly in all three themes, the switcher flips them live without reload, and text and money values are legible in Aero.
+**Done when:** all panels, the PMS mock, and the pharmacist phone render correctly in both themes, the switcher flips them live without reload, and text and money values are legible in Aero.
 
 ### UI-05 | T+10 to T+11 | Demo gate
 

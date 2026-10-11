@@ -1,5 +1,5 @@
 {
-  "_note": "Eight hand-curated demo claims (RXS-0001..0006 are the expansion templates; RXS-0007 and RXS-0008 are plain-text wholesaler demos that take serials 7 and 8 of the expansion) replayed through the PBM Sim by scripts/seed.ts. seed/expand.ts deterministically expands the templates to 60 claims (18 underwater, 39 clear, 3 marginal) with opaque patient_ref values. 401-D1 is stamped with today's date so every claim is inside its appeal window.",
+  "_note": "Nine hand-curated demo claims (RXS-0001..0006 are the expansion templates; RXS-0007 and RXS-0008 are plain-text wholesaler demos and RXS-0009 is the unrecoverable-denial demo; fixed claims take their own serials of the expansion) replayed through the PBM Sim by scripts/seed.ts. seed/expand.ts deterministically expands the templates to 60 claims (18 underwater, 39 clear, 3 marginal) with opaque patient_ref values. 401-D1 is stamped with today's date so every claim is inside its appeal window.",
   "claims": [
     {"claim_id": "RXS-0001", "expect": "SETTLED (demo: portal, TN attestation denial, remediation)",
      "meta": {"pbm": "PBM_PORTAL", "pharmacy_id": "PH-MEADOWBROOK", "state": "TN", "plan": "TN Part D", "patient_ref": "PT-7F3A"},
@@ -24,6 +24,9 @@
      "request": {"402-D2": "1048219", "407-D7": "16714029201", "442-E7": 30, "405-D5": 30, "409-D9": 10.50, "426-DQ": 14.00}},
     {"claim_id": "RXS-0008", "expect": "SETTLED (demo: fax, missing invoice date, plain-text wholesaler reply)",
      "meta": {"pbm": "PBM_FAX", "pharmacy_id": "PH-MEADOWBROOK", "state": "NC", "plan": "NC Commercial", "patient_ref": "PT-S0008"},
-     "request": {"402-D2": "1048220", "407-D7": "60505260901", "442-E7": 30, "405-D5": 30, "409-D9": 13.50, "426-DQ": 18.00}}
+     "request": {"402-D2": "1048220", "407-D7": "60505260901", "442-E7": 30, "405-D5": 30, "409-D9": 13.50, "426-DQ": 18.00}},
+    {"claim_id": "RXS-0009", "expect": "ABANDONED (wholesaler cannot supply invoice number, pharmacist texted)",
+     "meta": {"pbm": "PBM_EMAIL", "pharmacy_id": "PH-MEADOWBROOK", "state": "NC", "plan": "NC Commercial", "patient_ref": "PT-S0009"},
+     "request": {"402-D2": "1048221", "407-D7": "00093736598", "442-E7": 90, "405-D5": 30, "409-D9": 5.40, "426-DQ": 12.00}}
   ]
 }

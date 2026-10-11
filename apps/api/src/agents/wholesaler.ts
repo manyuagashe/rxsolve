@@ -109,6 +109,8 @@ export async function readReply(text: string, field: string, ask?: Ask): Promise
 function stubValue(claim: Claim, field: string): string {
   const id = claim.claim_id.replace(/^RXS-/, "");
   const inv = invoice(claim.ndc);
+  // An invoice line flagged `wholesaler_unavailable` models a wholesaler that cannot produce the document.
+  if ((inv as { wholesaler_unavailable?: boolean } | undefined)?.wholesaler_unavailable && field !== "acquisition_cost") return "";
   if (field === "acquisition_cost") return String(claim.acquisition_cost ?? inv?.unit_cost ?? "");
   if (field === "invoice_number") return inv?.invoice_number ?? `INV-${id}`;
   if (field === "invoice_date") return inv?.invoice_date ?? claim.fill_date;
@@ -136,11 +138,13 @@ export async function requestDocument(claim: Claim, field: string, opts: Wholesa
 
   if (!live && mode === "auto") {
     stubbedValue = stubValue(claim, field);
-    const reply = field === "acquisition_cost" ? `Unit cost per invoice: $${stubbedValue}` : `Attached: ${what} ${stubbedValue}`;
+    const reply = !stubbedValue
+      ? `Sorry, we cannot locate the ${what} for that NDC. Please check with your account rep.`
+      : field === "acquisition_cost" ? `Unit cost per invoice: $${stubbedValue}` : `Attached: ${what} ${stubbedValue}`;
     setTimeout(() => {
       void record({
         claim_id: claim.claim_id, channel, direction: "in", counterparty: "wholesaler", text: reply,
-        attachments: [`${field}_${claim.claim_id}.pdf`], meta: { stub: true },
+        attachments: stubbedValue ? [`${field}_${claim.claim_id}.pdf`] : [], meta: { stub: true },
       }).then(() => deliverInbound(contact, reply));
     }, 0);
   }

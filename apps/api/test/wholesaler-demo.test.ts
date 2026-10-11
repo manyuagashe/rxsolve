@@ -1,6 +1,7 @@
 /**
  * Plain-text wholesaler demo claims end to end over the PBM Sim: RXS-0007 (email) lacks the invoice number,
  * RXS-0008 (fax) the invoice date. Each is denied once, remediated by the stub wholesaler, then settled.
+ * RXS-0009 (email) is denied for the invoice number the wholesaler cannot supply, so it is abandoned and the pharmacist is texted.
  */
 import { afterAll, beforeAll, beforeEach, expect, test } from "bun:test";
 import { TERMINAL_STAGES, type Stage } from "@rxsolve/contracts";
@@ -74,4 +75,20 @@ test("real email and fax doors: the null field is sent empty, denied, remediated
   } finally {
     config.adapterMode = "direct";
   }
+});
+
+test("RXS-0009: the wholesaler cannot supply the invoice number, so the claim is abandoned and the pharmacist is texted", async () => {
+  expect(await run("RXS-0009")).toBe("ABANDONED");
+
+  const decisions = bus.history().filter((e) => e.type === "appeal.decision").map((e) => e.payload as { status: string; field: string | null });
+  expect(decisions).toHaveLength(1);
+  expect(decisions[0]).toMatchObject({ status: "DENIED", field: "invoice_number" });
+
+  const t = (await getDb().transcript.find({ claim_id: "RXS-0009" })).filter((m) => m.counterparty === "wholesaler");
+  expect(t.filter((m) => m.direction === "out")).toHaveLength(1);
+  expect(t.find((m) => m.direction === "in")!.text).toContain("cannot locate the invoice number");
+
+  const pharmacist = (await getDb().transcript.find({ claim_id: "RXS-0009" })).filter((m) => m.counterparty === "pharmacist" && m.direction === "out");
+  expect(pharmacist.some((m) => m.text.includes("abandoned"))).toBe(true);
+  expect((await getDb().remittances.find({ claim_id: "RXS-0009" })).length).toBe(0);
 });
