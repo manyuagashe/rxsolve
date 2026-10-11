@@ -1,6 +1,7 @@
 "use client";
 /** Pharmacist digest trigger (UI-04). The demo phone is a real device; this only sends the digest. */
 import { useState } from "react";
+import { CheckCircle2, Send, XCircle } from "lucide-react";
 import { Panel } from "@/components/ui/Panel";
 import { deliveryState } from "@/lib/delivery";
 
@@ -37,15 +38,25 @@ export function PharmacistPhone() {
   }
 
   return (
-    <Panel id="phone" title="Pharmacist digest" className="pharmacist">
-      <div className="phone-side">
-        <button className="btn" type="button" onClick={() => void sendDigest()} disabled={pending}>
-          {pending ? "Sending digest…" : "Send today's digest"}
+    <Panel
+      id="phone"
+      title="Pharmacist digest"
+      subtitle="One text a day to the pharmacist's phone"
+      bare
+      className="digest"
+      aside={
+        <button className="btn-gloss" type="button" onClick={() => void sendDigest()} disabled={pending}>
+          <Send aria-hidden="true" />
+          {pending ? "Sending…" : "Send today's digest"}
         </button>
-        {feedback && (
-          <p className={`feedback feedback--${feedback.kind}`} role={feedback.kind === "error" ? "alert" : "status"}>{feedback.text}</p>
-        )}
-      </div>
+      }
+    >
+      {feedback && (
+        <p className={`feedback feedback--${feedback.kind}`} role={feedback.kind === "error" ? "alert" : "status"}>
+          {feedback.kind === "success" ? <CheckCircle2 aria-hidden="true" /> : <XCircle aria-hidden="true" />}
+          {feedback.text}
+        </p>
+      )}
     </Panel>
   );
 }

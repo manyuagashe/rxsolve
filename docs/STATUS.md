@@ -32,7 +32,7 @@ Update this as work lands. Mark a ticket done when its "Done when" in `TICKETS.m
 | UI-04 | P3 | in progress | Per-claim transcript lives in the claim journey and status tree (pipeline board and channel viewer removed 2026-10-11); pharmacist card is a digest button showing `meta.delivered`, the demo phone is the real device; full live run across all channels pending |
 | UI-05 | P3 | todo | Requires two consecutive timed end-to-end runs with no manual intervention; not yet verified |
 | UI-06 | P3 | todo | README exists; screenshots, backed-up recording, sponsor checklist verification, and MLH form submission remain manual |
-| UI-07 | P3 | in progress | Dark/light/Aero token skins and persistent accessible switcher implemented; workspace typecheck/dashboard build pass, visual contrast check across all panels/devices pending |
+| UI-07 | P3 | in progress | Lovable DORFic design ported 2026-10-11: two skins (Frutiger Aero default, Dark Aero), hex-grid scene, glass panels with corner bolts, hex status lights, claim plates with hex progress, blueprint chart, circuit-board decision tree with full-screen view, glossy presenter page. Verified by a Playwright run of the held demo flow in both themes: home fits 1440x900 with no page scroll, no console errors, no horizontal overflow at 390 px. Formal contrast audit still pending |
 | UI-08 | P3 | in progress | Status screen artifacts drawers, presenter hold controls (PBM release, wholesaler reply, release all) and the unified cashier claim list implemented; unit, typecheck and isolated build pass, mocked-WS browser check done; live check against the PBM Sim release door pending until that door lands |
 
 ## Stubbed integrations

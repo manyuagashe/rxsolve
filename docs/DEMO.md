@@ -54,7 +54,7 @@ Three PBM personas, each modeled on a real PBM's public appeal procedure. Open b
 | Nessie | Recovery visibly moving real balances between pharmacy, PBM, and platform accounts |
 | TigerData | The recovered-over-time chart climbing live as settlements land, read from a continuous aggregate over the `ledger_events` hypertable (the chart's caption names the source) |
 | ElevenLabs (stretch) | Only if the stretch lands: voice recap in the digest; phone negotiation with the PBM rep |
-| Frutiger Aero track | Flip the dashboard from dark to light to Frutiger Aero live during the run; the PMS mock at `/pms` keeps its own fixed look, which shows it is a separate system |
+| Frutiger Aero track | Flip the dashboard between Frutiger Aero and Dark Aero live during the run; the PMS mock at `/pms` keeps its own fixed look, which shows it is a separate system |
 
 ## 21. Submission Assets
 

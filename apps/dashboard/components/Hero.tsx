@@ -37,15 +37,19 @@ export function Hero({ live }: PanelProps) {
 
   return (
     <section className="hero" aria-label="Total recovered">
-      <div className="hero__num money" aria-label={usd(recovered)}>{usd(shown)}</div>
       <div>
-        <div className="hero__label">Recovered to date</div>
-        <div className="hero__sub">
-          {live.ledger
-            ? `${settled} of ${claims.length} claims recovered · fees ${usd(fees)}`
-            : "Waiting for ledger balances"}
-        </div>
+        <div className="label-tracked hero__label">Recovered to date</div>
+        <div className="hero__num money" aria-label={usd(recovered)}>{usd(shown)}</div>
       </div>
+      <p className="hero__sub">
+        {live.ledger ? (
+          <>
+            <strong>{settled} of {claims.length} claims recovered</strong>
+            <span aria-hidden="true"> · </span>
+            fees <span className="money hero__fees">{usd(fees)}</span>
+          </>
+        ) : "Waiting for ledger balances"}
+      </p>
       <div className="hero__burst" role="status" aria-live="polite">{burst}</div>
     </section>
   );
