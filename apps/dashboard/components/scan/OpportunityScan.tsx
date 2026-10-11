@@ -1,18 +1,40 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Columns3, Download, ListChecks, Play, ShieldCheck, Upload } from "lucide-react";
 import { PolicySetup } from "@/components/scan/PolicySetup";
 import { Panel } from "@/components/ui/Panel";
+import { Pill } from "@/components/ui/Pill";
+import { prettyPbm } from "@/lib/claimRows";
 import {
-  buildHandoffExampleCsv,
-  EXAMPLE_SCANS,
   remainingScanDelay,
   reviewQueue,
   scanStatusPresentation,
   type OpportunityScanResult,
 } from "@/lib/opportunityScan";
+import { buildExampleCsv, EXAMPLE_SCANS, exampleFileName, type ExampleScanId } from "@/lib/scanExamples";
+import { useCountUp } from "@/lib/useCountUp";
 
 const usd = (value: number) => value.toLocaleString("en-US", { style: "currency", currency: "USD" });
+const claimCount = (count: number) => `${count} ${count === 1 ? "claim" : "claims"}`;
+
+const STEPS: Array<{ icon: ReactNode; title: string; body: string }> = [
+  { icon: <Columns3 />, title: "Matches columns", body: "Unfamiliar column names can be matched without sharing claim rows or dollar amounts." },
+  { icon: <ListChecks />, title: "Applies the same rules", body: "Code checks every amount, deadline and invoice, then adds up the totals." },
+  { icon: <ShieldCheck />, title: "Files nothing on its own", body: "Claims move only when you send them, under your saved auto-file limit." },
+];
+
+/** A summary figure. The headline one uses the dashboard's hero numerals and counts up. */
+function Metric({ label, value, note, hero = false }: { label: string; value: number; note: ReactNode; hero?: boolean }) {
+  const shown = useCountUp(value);
+  return (
+    <div className={`panel scan-metric${hero ? " scan-metric--hero" : ""}`}>
+      <div className="label-tracked">{label}</div>
+      <div className={hero ? "hero__num money" : "scan-metric__num money"} aria-label={usd(value)}>{usd(shown)}</div>
+      <p className="hero__sub">{note}</p>
+    </div>
+  );
+}
 
 export function OpportunityScan() {
   const summaryRef = useRef<HTMLElement>(null);
@@ -22,7 +44,8 @@ export function OpportunityScan() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [staged, setStaged] = useState(false);
-  const [selectedExampleId, setSelectedExampleId] = useState(EXAMPLE_SCANS[0].id);
+  const [selectedExampleId, setSelectedExampleId] = useState<ExampleScanId>(EXAMPLE_SCANS[0]!.id);
+  const selectedExample = EXAMPLE_SCANS.find((example) => example.id === selectedExampleId) ?? EXAMPLE_SCANS[0]!;
 
   useEffect(() => {
     if (result) summaryRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -57,22 +80,11 @@ export function OpportunityScan() {
     }
   }
 
-  async function analyzeExample() {
-    const example = EXAMPLE_SCANS.find((candidate) => candidate.id === selectedExampleId) ?? EXAMPLE_SCANS[0];
-    setPending(true);
-    setError(null);
-    try {
-      if (example.path === null) {
-        await analyze(buildHandoffExampleCsv(new Date()), example.name);
-        return;
-      }
-      const response = await fetch(example.path);
-      if (!response.ok) throw new Error("The example CSV could not be loaded.");
-      await analyze(await response.text(), example.name);
-    } catch (cause) {
-      setPending(false);
-      setError(cause instanceof Error ? cause.message : "The example CSV could not be loaded.");
-    }
+  function downloadExample() {
+    const url = URL.createObjectURL(new Blob([buildExampleCsv(selectedExample.id, new Date())], { type: "text/csv" }));
+    const link = Object.assign(document.createElement("a"), { href: url, download: exampleFileName(selectedExample.id) });
+    link.click();
+    URL.revokeObjectURL(url);
   }
 
   async function chooseFile(file: File | undefined) {
@@ -87,38 +99,47 @@ export function OpportunityScan() {
   const queue = result ? reviewQueue(result.claims) : [];
 
   return (
-    <div className="scan-flow">
-      <Panel id="scan-intro" title="Historical recovery scan" aside="Your claim data stays in the scan">
-        <div className="scan-intro">
-          <div>
-            <p className="scan-kicker">Find the recoverable losses already hiding in your claims.</p>
-            <p className="scan-copy">Try the example file or choose a pharmacy claims export. RxSolve checks the shortfall, evidence, and filing deadline for every claim.</p>
-          </div>
-          <div className="scan-actions">
-            <label className="scan-example-picker">
-              <span>Example scenario</span>
-              <select
-                value={selectedExampleId}
-                disabled={pending}
-                onChange={(event) => setSelectedExampleId(event.target.value as typeof selectedExampleId)}
-              >
-                {EXAMPLE_SCANS.map((example) => (
-                  <option key={example.id} value={example.id}>{example.name}</option>
-                ))}
-              </select>
-              <small>{EXAMPLE_SCANS.find((example) => example.id === selectedExampleId)?.description}</small>
-            </label>
+    <>
+      <section className="scan-intro" aria-labelledby="scan-intro-title">
+        <div className="scan-intro__copy">
+          <div className="label-tracked">Historical recovery scan</div>
+          <h1 id="scan-intro-title" className="scan-intro__title">Find the recoverable losses already hiding in your claims.</h1>
+          <p className="scan-intro__lede">Run an example or upload a pharmacy claims export. RxSolve checks the shortfall, evidence and filing deadline on every claim before anything is filed.</p>
+          <ol className="scan-steps">
+            {STEPS.map((step) => (
+              <li key={step.title}>
+                <span className="hex-orb hex-orb--info scan-steps__orb" aria-hidden="true">{step.icon}</span>
+                <span><b>{step.title}</b>{step.body}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+
+        <div className="panel scan-launcher">
+          <label className="scan-example-picker">
+            <span className="label-tracked">Example scenario</span>
+            <select
+              value={selectedExampleId}
+              disabled={pending}
+              onChange={(event) => setSelectedExampleId(event.target.value as ExampleScanId)}
+            >
+              {EXAMPLE_SCANS.map((example) => (
+                <option key={example.id} value={example.id}>{example.name}</option>
+              ))}
+            </select>
+            <small>{selectedExample.description}</small>
+          </label>
+          <div className="scan-launcher__actions">
             <button
               className="btn btn--ghost"
               type="button"
               aria-controls="scan-summary"
-              onClick={() => void analyzeExample()}
+              onClick={() => void analyze(buildExampleCsv(selectedExample.id, new Date()), selectedExample.name)}
               disabled={pending}
             >
-              {pending ? "Checking claims..." : "Run example CSV"}
+              <Play aria-hidden="true" />{pending ? "Checking claims..." : "Run example CSV"}
             </button>
-            <label className="btn scan-file">
-              Choose a CSV
+            <label className="btn scan-file"><Upload aria-hidden="true" />Choose a CSV
               <input
                 type="file"
                 accept=".csv,text/csv"
@@ -127,47 +148,52 @@ export function OpportunityScan() {
               />
             </label>
           </div>
+          <button className="scan-launcher__download" type="button" onClick={downloadExample} disabled={pending}>
+            <Download aria-hidden="true" />Download this example to try the upload
+          </button>
+          {pending && (
+            <div className="scan-progress" role="status" aria-live="polite">
+              <span>Analyzing claim data</span>
+              <div className="scan-progress__track" aria-hidden="true"><i /></div>
+            </div>
+          )}
+          {error && <p className="scan-error" role="alert">Scan stopped: {error}</p>}
         </div>
-        {pending && (
-          <div className="scan-progress" role="status" aria-live="polite">
-            <span>Analyzing claim data</span>
-            <div className="scan-progress__track" aria-hidden="true"><i /></div>
-          </div>
-        )}
-        {error && <p className="scan-error" role="alert">Scan stopped: {error}</p>}
-      </Panel>
+      </section>
 
       {result && (
         <>
           <section id="scan-summary" ref={summaryRef} className="scan-summary" aria-label="Opportunity summary" aria-live="polite">
-            <div className="scan-metric scan-metric--hero">
-              <span>Ready to recover</span>
-              <strong>{usd(result.summary.ready_to_recover)}</strong>
-              <small>{result.summary.ready_claims} claims have complete evidence and an open deadline</small>
-            </div>
-            <div className="scan-metric">
-              <span>Total shortfall found</span>
-              <strong>{usd(result.summary.total_shortfall)}</strong>
-              <small>{result.summary.underpaid_claims} of {result.summary.claims_scanned} claims were underpaid</small>
-            </div>
-            <div className="scan-metric">
-              <span>Estimated pharmacy net</span>
-              <strong>{usd(result.summary.estimated_pharmacy_net)}</strong>
-              <small>after an estimated {usd(result.summary.estimated_fee)} RxSolve fee</small>
-            </div>
+            <Metric
+              hero
+              label="Ready to recover"
+              value={result.summary.ready_to_recover}
+              note={<><strong>{claimCount(result.summary.ready_claims)}</strong> with complete evidence and an open deadline</>}
+            />
+            <Metric
+              label="Total shortfall found"
+              value={result.summary.total_shortfall}
+              note={<><strong>{result.summary.underpaid_claims} of {result.summary.claims_scanned}</strong> claims were underpaid</>}
+            />
+            <Metric
+              label="Estimated pharmacy net"
+              value={result.summary.estimated_pharmacy_net}
+              note={<>after an estimated <span className="money hero__fees">{usd(result.summary.estimated_fee)}</span> RxSolve fee</>}
+            />
           </section>
 
           <Panel
             id="scan-triage"
             title="Triage"
-            aside={`${sourceName} · ${result.parser.mode === "llm_assisted" ? "columns matched automatically" : "standard column match"}`}
+            subtitle={`${sourceName} · ${result.parser.mode === "llm_assisted" ? "columns matched automatically" : "standard column match"}`}
+            aside={claimCount(result.summary.claims_scanned)}
           >
             <div className="scan-buckets" aria-label="Claim categories">
-              <span><b>{result.summary.ready_claims}</b> ready</span>
-              <span><b>{result.summary.needs_review_claims}</b> need review</span>
-              <span><b>{result.summary.missing_data_claims}</b> missing evidence</span>
-              <span><b>{result.summary.expired_claims}</b> expired</span>
-              <span><b>{result.summary.paid_fairly_claims}</b> paid fairly</span>
+              <Pill tone="good">{result.summary.ready_claims} ready</Pill>
+              <Pill tone="warn">{result.summary.needs_review_claims} need review</Pill>
+              <Pill tone="warn">{result.summary.missing_data_claims} missing evidence</Pill>
+              <Pill tone="bad">{result.summary.expired_claims} expired</Pill>
+              <Pill tone="muted">{result.summary.paid_fairly_claims} paid fairly</Pill>
             </div>
 
             <div className="scan-table-wrap">
@@ -180,13 +206,13 @@ export function OpportunityScan() {
                     const presentation = scanStatusPresentation(claim.status);
                     return (
                       <tr key={claim.claim_id}>
-                        <td className="mono">{claim.claim_id}</td>
+                        <td className="money">{claim.claim_id}</td>
                         <td><strong>{claim.drug}</strong><small>{claim.state} · deadline {claim.appeal_deadline}</small></td>
-                        <td>{claim.pbm.replace("PBM_", "PBM ")}</td>
-                        <td>{usd(claim.total_paid)}</td>
-                        <td>{usd(claim.acquisition_cost)}</td>
-                        <td className={claim.shortfall > 0 ? "tone-bad" : "tone-muted"}>{usd(claim.shortfall)}</td>
-                        <td><span className={`scan-status scan-status--${presentation.tone}`}>{presentation.label}</span><small>{claim.reason}</small></td>
+                        <td>{prettyPbm(claim.pbm)}</td>
+                        <td className="money">{usd(claim.total_paid)}</td>
+                        <td className="money">{usd(claim.acquisition_cost)}</td>
+                        <td className={`money ${claim.shortfall > 0 ? "tone-bad" : "tone-muted"}`}>{usd(claim.shortfall)}</td>
+                        <td><Pill tone={presentation.tone}>{presentation.label}</Pill><small>{claim.reason}</small></td>
                       </tr>
                     );
                   })}
@@ -196,26 +222,18 @@ export function OpportunityScan() {
 
             <div className="scan-stage">
               <div>
-                <strong>{staged ? `${queue.length} claims moved to the review queue` : "Nothing will be filed yet"}</strong>
-                <p>{staged ? "Choose the claims and the dollar limit below." : "Review ready and needs-review claims together, then set your approval limit."}</p>
+                <strong>{staged ? `${claimCount(queue.length)} moved to the review queue` : "Nothing will be filed yet"}</strong>
+                <p>{staged ? "Choose the claims below, then send them to RxSolve." : "Review ready and needs-review claims together before anything is sent."}</p>
               </div>
               <button className="btn" type="button" disabled={!queue.length || staged} onClick={() => setStaged(true)}>
-                {staged ? "Review queue open" : `Review ${queue.length} claims`}
+                {staged ? "Review queue open" : `Review ${claimCount(queue.length)}`}
               </button>
             </div>
           </Panel>
 
           {staged && <PolicySetup claims={queue} csv={scannedCsv} />}
-
-          <Panel id="scan-safety" title="How the scan handles your file">
-            <div className="scan-safety">
-              <div><b>1. Matches columns</b><span>RxSolve can match unfamiliar column names without sharing claim rows or dollar amounts.</span></div>
-              <div><b>2. Uses a fixed format</b><span>Every column must match one of eleven supported fields.</span></div>
-              <div><b>3. Applies the same rules</b><span>Code checks the amounts, deadlines, evidence, and final totals.</span></div>
-            </div>
-          </Panel>
         </>
       )}
-    </div>
+    </>
   );
 }

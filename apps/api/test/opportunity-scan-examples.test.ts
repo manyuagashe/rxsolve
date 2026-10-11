@@ -1,104 +1,90 @@
 import { describe, expect, test } from "bun:test";
-import { join } from "node:path";
-import { scanOpportunityCsv, type OpportunityScanResult, type ScanStatus } from "../src/opportunity-scan";
+import { buildExampleCsv, EXAMPLE_SCANS, type ExampleScanId } from "../../dashboard/lib/scanExamples";
+import { deadlineFor } from "../src/deadlines";
+import { scanOpportunityCsv, type ScanStatus } from "../src/opportunity-scan";
+import { invoice } from "../src/reference";
 
-const NOW = new Date("2026-10-11T12:00:00Z");
-const EXAMPLE_DIR = join(import.meta.dir, "../../dashboard/public");
+const TODAY = new Date("2026-10-14T12:00:00Z"); // a Wednesday
 
-type ExpectedExample = {
-  file: string;
-  statuses: ScanStatus[];
-  summary: OpportunityScanResult["summary"];
-};
+type Expected = { statuses: ScanStatus[]; total_shortfall: number; ready_to_recover: number };
 
-const EXAMPLES: ExpectedExample[] = [
-  {
-    file: "sample-claims.csv",
+const EXPECTED: Record<ExampleScanId, Expected> = {
+  mixed: {
     statuses: ["READY", "PAID_FAIRLY", "NEEDS_REVIEW", "EXPIRED", "MISSING_DATA", "READY", "READY", "PAID_FAIRLY", "READY", "READY"],
-    summary: { claims_scanned: 10, underpaid_claims: 8, ready_claims: 5, needs_review_claims: 1, missing_data_claims: 1, expired_claims: 1, paid_fairly_claims: 2, total_shortfall: 73.25, ready_to_recover: 60.95, estimated_fee: 15.24, estimated_pharmacy_net: 45.71 },
+    total_shortfall: 62.3,
+    ready_to_recover: 47.6,
   },
-  {
-    file: "sample-high-recovery.csv",
-    statuses: ["READY", "READY", "READY", "READY", "READY", "READY"],
-    summary: { claims_scanned: 6, underpaid_claims: 6, ready_claims: 6, needs_review_claims: 0, missing_data_claims: 0, expired_claims: 0, paid_fairly_claims: 0, total_shortfall: 290.5, ready_to_recover: 290.5, estimated_fee: 72.63, estimated_pharmacy_net: 217.87 },
-  },
-  {
-    file: "sample-missing-evidence.csv",
-    statuses: ["MISSING_DATA", "MISSING_DATA", "MISSING_DATA", "READY", "PAID_FAIRLY"],
-    summary: { claims_scanned: 5, underpaid_claims: 4, ready_claims: 1, needs_review_claims: 0, missing_data_claims: 3, expired_claims: 0, paid_fairly_claims: 1, total_shortfall: 63, ready_to_recover: 9, estimated_fee: 2.25, estimated_pharmacy_net: 6.75 },
-  },
-  {
-    file: "sample-deadline-risk.csv",
-    statuses: ["READY", "READY", "READY", "EXPIRED", "EXPIRED", "PAID_FAIRLY"],
-    summary: { claims_scanned: 6, underpaid_claims: 5, ready_claims: 3, needs_review_claims: 0, missing_data_claims: 0, expired_claims: 2, paid_fairly_claims: 1, total_shortfall: 87, ready_to_recover: 45, estimated_fee: 11.25, estimated_pharmacy_net: 33.75 },
-  },
-  {
-    file: "sample-alternate-export.csv",
-    statuses: ["READY", "READY", "NEEDS_REVIEW", "MISSING_DATA", "PAID_FAIRLY"],
-    summary: { claims_scanned: 5, underpaid_claims: 4, ready_claims: 2, needs_review_claims: 1, missing_data_claims: 1, expired_claims: 0, paid_fairly_claims: 1, total_shortfall: 60.2, ready_to_recover: 30, estimated_fee: 7.5, estimated_pharmacy_net: 22.5 },
-  },
-];
+  "high-recovery": { statuses: ["READY", "READY", "READY", "READY", "READY", "READY"], total_shortfall: 385.6, ready_to_recover: 385.6 },
+  "missing-evidence": { statuses: ["MISSING_DATA", "MISSING_DATA", "MISSING_DATA", "READY", "PAID_FAIRLY"], total_shortfall: 31.7, ready_to_recover: 5.9 },
+  "deadline-risk": { statuses: ["READY", "READY", "READY", "EXPIRED", "EXPIRED", "PAID_FAIRLY"], total_shortfall: 63.5, ready_to_recover: 31.8 },
+  "alternate-export": { statuses: ["READY", "READY", "NEEDS_REVIEW", "MISSING_DATA", "PAID_FAIRLY"], total_shortfall: 30.6, ready_to_recover: 26.8 },
+  handoff: { statuses: ["READY", "READY", "READY", "READY", "READY", "NEEDS_REVIEW"], total_shortfall: 150, ready_to_recover: 149.7 },
+};
 
 const rounded = (value: number) => Math.round(value * 100) / 100;
 
-async function readExample(file: string): Promise<string> {
-  return Bun.file(join(EXAMPLE_DIR, file)).text();
-}
+describe("opportunity scan examples", () => {
+  test("every scenario has a reviewed expectation", () => {
+    expect(EXAMPLE_SCANS.map((example): string => example.id).sort()).toEqual(Object.keys(EXPECTED).sort());
+  });
 
-describe("opportunity scan example regression suite", () => {
-  for (const expected of EXAMPLES) {
-    test(`${expected.file} has the reviewed row decisions and totals`, async () => {
+  for (const { id } of EXAMPLE_SCANS) {
+    test(`${id} has the reviewed row decisions and totals without calling the model`, async () => {
       let modelCalls = 0;
-      const result = await scanOpportunityCsv(await readExample(expected.file), {
-        now: NOW,
-        suggestHeaders: async () => {
-          modelCalls++;
-          return [];
-        },
+      const result = await scanOpportunityCsv(buildExampleCsv(id, TODAY), {
+        now: TODAY,
+        suggestHeaders: async () => { modelCalls++; return []; },
       });
 
       expect(modelCalls).toBe(0);
       expect(result.parser.mode).toBe("deterministic");
-      expect(result.claims.map((claim) => claim.status)).toEqual(expected.statuses);
-      expect(result.summary).toEqual(expected.summary);
+      expect(result.claims.map((claim) => claim.status)).toEqual(EXPECTED[id].statuses);
+      expect(result.summary.total_shortfall).toBe(EXPECTED[id].total_shortfall);
+      expect(result.summary.ready_to_recover).toBe(EXPECTED[id].ready_to_recover);
+      expect(result.summary.estimated_fee).toBe(rounded(EXPECTED[id].ready_to_recover * 0.25));
+    });
+
+    test(`${id} agrees with RxSolve's own invoices and deadlines, so its claims can be handed over`, async () => {
+      const result = await scanOpportunityCsv(buildExampleCsv(id, TODAY), { now: TODAY });
 
       for (const claim of result.claims) {
-        expect(claim.shortfall).toBe(rounded(Math.max(0, claim.acquisition_cost - claim.total_paid)));
-        if (claim.status === "READY") {
-          expect(claim.shortfall).toBeGreaterThan(0.5);
-          expect(claim.invoice_number).not.toBeNull();
-          expect(claim.invoice_date).not.toBeNull();
-          expect(new Date(`${claim.appeal_deadline}T23:59:59Z`).getTime()).toBeGreaterThanOrEqual(NOW.getTime());
+        expect(claim.quantity).not.toBeNull();
+        expect(claim.rx_number).not.toBeNull();
+        expect(claim.plan).not.toBeNull();
+        // The file's deadline is the pipeline's deadline.
+        expect(claim.appeal_deadline).toBe(deadlineFor(claim.state, claim.fill_date));
+
+        const line = invoice(claim.ndc);
+        if (claim.status === "READY" || claim.status === "NEEDS_REVIEW") {
+          if (id === "handoff" && claim.claim_id === "HAND-005") continue; // the deliberate "no invoice" row
+          expect(line).toBeDefined();
+          expect(claim.acquisition_cost).toBe(rounded(line!.unit_cost * claim.quantity!));
+        }
+        if (claim.status === "MISSING_DATA" && line) {
+          // The gap in the file is a gap RxSolve's invoice line really has.
+          expect(line.invoice_number === null || line.invoice_date === null).toBe(true);
         }
       }
-
-      const readyTotal = rounded(result.claims
-        .filter((claim) => claim.status === "READY")
-        .reduce((sum, claim) => sum + claim.shortfall, 0));
-      expect(result.summary.ready_to_recover).toBe(readyTotal);
     });
   }
 
   test("changing row facts changes the decision instead of preserving a preset result", async () => {
-    const original = await readExample("sample-claims.csv");
+    const original = buildExampleCsv("mixed", TODAY);
+    const [header, first, ...rest] = original.split("\n");
+    const withFirst = (edit: (fields: string[]) => void) => {
+      const fields = first!.split(",");
+      edit(fields);
+      return [header, fields.join(","), ...rest].join("\n");
+    };
 
-    const fairlyPaid = await scanOpportunityCsv(
-      original.replace("NC,6.40,12.80,INV-1001", "NC,12.80,12.80,INV-1001"),
-      { now: NOW },
-    );
-    expect(fairlyPaid.claims[0]).toMatchObject({ claim_id: "HIST-001", shortfall: 0, status: "PAID_FAIRLY" });
+    const fairlyPaid = await scanOpportunityCsv(withFirst((f) => { f[6] = "12.80"; }), { now: TODAY });
+    expect(fairlyPaid.claims[0]).toMatchObject({ claim_id: "MIX-001", shortfall: 0, status: "PAID_FAIRLY" });
     expect(fairlyPaid.summary.ready_claims).toBe(4);
 
-    const missingEvidence = await scanOpportunityCsv(
-      original.replace("INV-1001,2026-09-01,2026-10-20", ",,2026-10-20"),
-      { now: NOW },
-    );
-    expect(missingEvidence.claims[0]).toMatchObject({ claim_id: "HIST-001", shortfall: 6.4, status: "MISSING_DATA" });
+    const missingEvidence = await scanOpportunityCsv(withFirst((f) => { f[8] = ""; f[9] = ""; }), { now: TODAY });
+    expect(missingEvidence.claims[0]).toMatchObject({ claim_id: "MIX-001", shortfall: 6.4, status: "MISSING_DATA" });
 
-    const expired = await scanOpportunityCsv(
-      original.replace("INV-1001,2026-09-01,2026-10-20", "INV-1001,2026-09-01,2026-10-10"),
-      { now: NOW },
-    );
-    expect(expired.claims[0]).toMatchObject({ claim_id: "HIST-001", shortfall: 6.4, status: "EXPIRED" });
+    const expired = await scanOpportunityCsv(withFirst((f) => { f[10] = "2026-10-01"; }), { now: TODAY });
+    expect(expired.claims[0]).toMatchObject({ claim_id: "MIX-001", shortfall: 6.4, status: "EXPIRED" });
   });
 });

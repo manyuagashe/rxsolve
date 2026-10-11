@@ -6,45 +6,6 @@ export function remainingScanDelay(startedAt: number, now = Date.now()): number 
   return Math.max(0, MINIMUM_SCAN_DURATION_MS - (now - startedAt));
 }
 
-export const EXAMPLE_SCANS = [
-  {
-    id: "mixed",
-    name: "Mixed claim outcomes",
-    description: "Ready, review, missing evidence, expired, and fairly paid claims.",
-    path: "/sample-claims.csv",
-  },
-  {
-    id: "high-recovery",
-    name: "High recovery opportunity",
-    description: "Six complete claims with larger recoverable shortfalls.",
-    path: "/sample-high-recovery.csv",
-  },
-  {
-    id: "missing-evidence",
-    name: "Missing invoice evidence",
-    description: "Claims that need invoice details before they can move forward.",
-    path: "/sample-missing-evidence.csv",
-  },
-  {
-    id: "deadline-risk",
-    name: "Deadline risk",
-    description: "A mix of urgent open deadlines and claims that are already late.",
-    path: "/sample-deadline-risk.csv",
-  },
-  {
-    id: "alternate-export",
-    name: "Different column names",
-    description: "A pharmacy export that uses common aliases instead of RxSolve labels.",
-    path: "/sample-alternate-export.csv",
-  },
-  {
-    id: "handoff",
-    name: "Ready for RxSolve handoff",
-    description: "Recent claims for drugs RxSolve has invoices for. Use it to try Send to RxSolve.",
-    // No file: buildHandoffExampleCsv makes this one fresh so its dates are always in the appeal window.
-    path: null,
-  },
-] as const;
 
 type StatusTone = "good" | "muted" | "warn" | "bad";
 
@@ -209,29 +170,4 @@ export function handoffPolicyNote(saved: SavedPolicy | null): string {
 export function previewMismatchNote(saved: SavedPolicy | null, previewLimit: number | null): string | null {
   if (!saved || previewLimit === null || previewLimit === saved.auto_file_max) return null;
   return `The limit above is a preview. Sending uses your saved ${dollars(saved.auto_file_max)} limit.`;
-}
-
-const DAY_MS = 86_400_000;
-const isoDay = (date: Date, offsetDays: number) => new Date(date.getTime() + offsetDays * DAY_MS).toISOString().slice(0, 10);
-
-/**
- * Example file for trying the handoff. The drugs, quantities and costs match RxSolve's invoice
- * data (apps/api/src/fixtures/invoices.json), so the scan's estimate and the pipeline agree.
- * HAND-005 is a drug RxSolve has no invoice for, to show a rejection.
- */
-export function buildHandoffExampleCsv(today: Date): string {
-  const fill = isoDay(today, -1);
-  const deadline = isoDay(today, 10);
-  const rows = [
-    ["HAND-001", "00093715698", "Atorvastatin 20 mg", "PBM_EMAIL", "NC", "4.00", "9.90", "INV-55121", "2026-10-01", "90", "7001001", "NC Commercial"],
-    ["HAND-002", "68180051301", "Lisinopril 10 mg", "PBM_FAX", "GA", "4.80", "9.00", "INV-55122", "2026-10-02", "60", "7001002", "GA Medicaid MCO"],
-    ["HAND-003", "00781107210", "Amlodipine 5 mg", "PBM_PORTAL", "NC", "20.00", "150.00", "INV-55123", "2026-10-02", "500", "7001003", "NC Commercial"],
-    ["HAND-004", "00378001801", "Metformin HCl 500 mg", "PBM_PORTAL", "TN", "6.40", "12.80", "INV-55120", "2026-10-01", "1000", "7001004", "TN Part D"],
-    ["HAND-005", "00054429931", "Omeprazole 20 mg", "PBM_FAX", "NC", "2.80", "6.00", "INV-90001", "2026-10-02", "30", "7001005", "NC Commercial"],
-    ["HAND-006", "00093715698", "Atorvastatin 20 mg", "PBM_EMAIL", "NC", "0.80", "1.10", "INV-55121", "2026-10-01", "10", "7001006", "NC Commercial"],
-  ];
-  const header = "Claim ID,Fill Date,NDC,Drug,PBM,State,Total Paid,Acquisition Cost,Invoice Number,Invoice Date,Appeal Deadline,Quantity,Rx Number,Plan";
-  const lines = rows.map(([id, ndc, drug, pbm, state, paid, cost, invoiceNumber, invoiceDate, quantity, rx, plan]) =>
-    [id, fill, ndc, drug, pbm, state, paid, cost, invoiceNumber, invoiceDate, deadline, quantity, rx, plan].join(","));
-  return [header, ...lines].join("\n");
 }

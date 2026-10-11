@@ -5,9 +5,7 @@ import { OpportunityScan } from "../components/scan/OpportunityScan";
 import { PolicySetup } from "../components/scan/PolicySetup";
 import { ScanHandoff } from "../components/scan/ScanHandoff";
 import {
-  buildHandoffExampleCsv,
   DEFAULT_AUTO_FILE_MAX,
-  EXAMPLE_SCANS,
   handoffBlocker,
   handoffPolicyNote,
   MAX_HANDOFF_CLAIMS,
@@ -21,6 +19,7 @@ import {
   scanStatusPresentation,
   toggleSelected,
 } from "../lib/opportunityScan";
+import { addBusinessDays, appealDeadline, buildExampleCsv, buildHandoffExampleCsv, EXAMPLE_SCANS } from "../lib/scanExamples";
 
 test("scan statuses have plain-language labels and semantic tones", () => {
   expect(scanStatusPresentation("READY")).toEqual({ label: "Ready for RxSolve", tone: "good" });
@@ -50,14 +49,13 @@ test("scan intake offers six built-in scenarios directly with concise copy", () 
 
   expect(EXAMPLE_SCANS).toHaveLength(6);
   expect(new Set(EXAMPLE_SCANS.map((example) => example.id)).size).toBe(6);
-  expect(EXAMPLE_SCANS.filter((example) => example.path === null).map((example) => example.id)).toEqual(["handoff"]);
   expect(html.match(/<option/g)).toHaveLength(6);
   expect(html).toContain("Run example CSV");
   expect(html).toContain("Choose a CSV");
   expect(html.indexOf("Run example CSV")).toBeLessThan(html.indexOf("Choose a CSV"));
   expect(html).toContain('<button class="btn btn--ghost" type="button" aria-controls="scan-summary"');
-  expect(html).toContain('<label class="btn scan-file">Choose a CSV');
-  expect(html).not.toContain("Download the example CSV");
+  expect(html).toContain('<label class="btn scan-file">');
+  expect(html).toContain("Download this example to try the upload");
   expect(html).not.toContain("scan-privacy");
   expect(html).not.toContain("—");
 });
@@ -140,13 +138,29 @@ test("policy setup preselects ready claims and previews the default limit withou
 // --- Handoff to the claim pipeline -------------------------------------------------------------
 
 test("the handoff example is built around today so its claims are inside the appeal window", () => {
+  // 2026-10-12 is a Monday: filled one business day earlier, each deadline is the state's window.
   const lines = buildHandoffExampleCsv(new Date("2026-10-12T15:00:00Z")).split("\n");
+  const rows = lines.slice(1).map((line) => line.split(","));
 
   expect(lines[0]).toBe("Claim ID,Fill Date,NDC,Drug,PBM,State,Total Paid,Acquisition Cost,Invoice Number,Invoice Date,Appeal Deadline,Quantity,Rx Number,Plan");
-  expect(lines).toHaveLength(7);
-  expect(lines.slice(1).every((line) => line.split(",")[1] === "2026-10-11")).toBe(true);
-  expect(lines.slice(1).every((line) => line.split(",")[10] === "2026-10-22")).toBe(true);
-  expect(lines.slice(1).map((line) => line.split(",")[0])).toEqual(["HAND-001", "HAND-002", "HAND-003", "HAND-004", "HAND-005", "HAND-006"]);
+  expect(rows.map((row) => row[0])).toEqual(["HAND-001", "HAND-002", "HAND-003", "HAND-004", "HAND-005", "HAND-006"]);
+  expect(rows.every((row) => row[1] === "2026-10-09")).toBe(true);
+  expect(rows.map((row) => [row[5], row[10]])).toEqual([
+    ["NC", "2026-10-19"], ["GA", "2026-10-23"], ["NC", "2026-10-19"], ["TN", "2026-10-20"], ["NC", "2026-10-19"], ["NC", "2026-10-19"],
+  ]);
+});
+
+test("business days skip weekends in both directions", () => {
+  expect(addBusinessDays("2026-10-12", -1)).toBe("2026-10-09");
+  expect(addBusinessDays("2026-10-09", 1)).toBe("2026-10-12");
+  expect(appealDeadline("GA", "2026-10-09")).toBe("2026-10-23");
+});
+
+test("every example scenario is generated with the columns the handoff needs", () => {
+  for (const { id } of EXAMPLE_SCANS) {
+    const [header] = buildExampleCsv(id, new Date("2026-10-12T15:00:00Z")).split("\n");
+    expect(header!.split(",").slice(-3)).toEqual(id === "alternate-export" ? ["Qty", "Rx No", "Plan Name"] : ["Quantity", "Rx Number", "Plan"]);
+  }
 });
 
 test("the send button explains what is still missing, in order", () => {

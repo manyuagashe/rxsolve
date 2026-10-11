@@ -18,7 +18,7 @@ export function AppHeader({ live, compact = false }: PanelProps & { compact?: bo
           </span>
         </Link>
         <div className="app-header__controls">
-          <Link className="btn btn--ghost btn--sm" href="/scan">Scan historical claims</Link>
+          {!compact && <Link className="btn btn--ghost btn--sm" href="/scan">Scan historical claims</Link>}
           <p className="live-status" role="status" aria-live="polite">
             <Pill tone={live.connected ? "good" : "info"}>{live.connected ? "Live stream connected" : "Connecting to live stream"}</Pill>
           </p>

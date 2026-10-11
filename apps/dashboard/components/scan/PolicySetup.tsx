@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { ScanHandoff } from "@/components/scan/ScanHandoff";
 import { Panel } from "@/components/ui/Panel";
+import { Pill } from "@/components/ui/Pill";
+import { prettyPbm } from "@/lib/claimRows";
 import {
   DEFAULT_AUTO_FILE_MAX,
   parseAutoFileMax,
@@ -95,10 +97,10 @@ export function PolicySetup({ claims, csv }: { claims: PolicySetupClaim[]; csv: 
                       onChange={() => setSelectedIds((current) => toggleSelected(current, claim.claim_id))}
                     />
                   </td>
-                  <td className="mono">{claim.claim_id}</td>
-                  <td><strong>{claim.drug}</strong><small>{claim.pbm.replace("PBM_", "PBM ")}</small></td>
-                  <td className="tone-bad">{usd(claim.shortfall)}</td>
-                  <td><span className={`scan-status scan-status--${presentation.tone}`}>{presentation.label}</span></td>
+                  <td className="money">{claim.claim_id}</td>
+                  <td><strong>{claim.drug}</strong><small>{prettyPbm(claim.pbm)}</small></td>
+                  <td className="money tone-bad">{usd(claim.shortfall)}</td>
+                  <td><Pill tone={presentation.tone}>{presentation.label}</Pill></td>
                   <td>{routeLabel(claim.claim_id)}</td>
                 </tr>
               );

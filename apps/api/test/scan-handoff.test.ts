@@ -4,7 +4,7 @@
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { TERMINAL_STAGES, type Stage } from "@rxsolve/contracts";
-import { buildHandoffExampleCsv } from "../../dashboard/lib/opportunityScan";
+import { buildExampleCsv, buildHandoffExampleCsv, EXAMPLE_SCANS } from "../../dashboard/lib/scanExamples";
 import { startSim } from "../../pbm-sim/src/server";
 import { wholesalerConfig } from "../src/agents/wholesaler";
 import { config } from "../src/config";
@@ -353,4 +353,33 @@ describe("the dashboard's handoff example", () => {
     });
     expect(await ledgerSummary()).toMatchObject({ recovered_to_date: 16.5 }); // 5.90 + 4.20 + 6.40
   });
+
+  // Every example on the page must be sendable: the bug this guards is a scenario whose rows the
+  // handoff rejected (no quantity, no invoice, or a deadline the pipeline considered closed).
+  for (const { id } of EXAMPLE_SCANS) {
+    test(`the ${id} example's sendable claims all run through the pipeline`, async () => {
+      // The PBM Sim outlives each test, so reuse of the earlier test's HAND- IDs would look like a refile.
+      const csv = buildExampleCsv(id, new Date()).replaceAll("HAND-", "HX-");
+      const scan = await scanOpportunityCsv(csv, {});
+      const queue = scan.claims.filter((claim) => claim.status === "READY" || claim.status === "NEEDS_REVIEW");
+      const response = await fetch(`${api.url}/api/opportunity-scan/handoff`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ csv, claim_ids: queue.map((claim) => claim.claim_id) }),
+      });
+      const body = await response.json() as { accepted: Array<{ claim_id: string }>; rejected: Array<{ claim_id: string }> };
+
+      expect(body.rejected.map((claim) => claim.claim_id)).toEqual(id === "handoff" ? ["HX-005"] : []);
+      for (const claim of queue.filter((row) => row.claim_id !== "HX-005")) {
+        let stage: Stage | undefined;
+        for (let i = 0; i < 400 && !stage; i++) {
+          const current = (await getDb().claims.get(claim.claim_id))?.stage;
+          if (current && TERMINAL_STAGES.includes(current)) stage = current;
+          else await Bun.sleep(10);
+        }
+        const expected = claim.status === "READY" && claim.shortfall <= 100 ? "SETTLED" : "EXCEPTION";
+        expect([claim.claim_id, stage]).toEqual([claim.claim_id, expected]);
+      }
+    });
+  }
 });
