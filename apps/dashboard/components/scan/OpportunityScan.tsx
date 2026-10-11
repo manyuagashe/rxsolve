@@ -44,6 +44,7 @@ export function OpportunityScan() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [staged, setStaged] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const [selectedExampleId, setSelectedExampleId] = useState<ExampleScanId>(EXAMPLE_SCANS[0]!.id);
   const selectedExample = EXAMPLE_SCANS.find((example) => example.id === selectedExampleId) ?? EXAMPLE_SCANS[0]!;
 
@@ -96,6 +97,33 @@ export function OpportunityScan() {
     await analyze(await file.text(), file.name);
   }
 
+  // A CSV dropped anywhere on the page is scanned; without these handlers the browser would open the file instead.
+  useEffect(() => {
+    const hasFiles = (e: DragEvent) => [...(e.dataTransfer?.types ?? [])].includes("Files");
+    const over = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      setDragging(true);
+    };
+    const leave = (e: DragEvent) => {
+      if (e.relatedTarget === null) setDragging(false);
+    };
+    const drop = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      setDragging(false);
+      if (!pending) void chooseFile(e.dataTransfer?.files[0]);
+    };
+    window.addEventListener("dragover", over);
+    window.addEventListener("dragleave", leave);
+    window.addEventListener("drop", drop);
+    return () => {
+      window.removeEventListener("dragover", over);
+      window.removeEventListener("dragleave", leave);
+      window.removeEventListener("drop", drop);
+    };
+  });
+
   const queue = result ? reviewQueue(result.claims) : [];
 
   return (
@@ -115,7 +143,8 @@ export function OpportunityScan() {
           </ol>
         </div>
 
-        <div className="panel scan-launcher">
+        <div className={`panel scan-launcher${dragging ? " scan-launcher--drag" : ""}`}>
+          <div className="scan-drop" aria-hidden="true"><Upload />Drop a claims CSV anywhere on this page</div>
           <label className="scan-example-picker">
             <span className="label-tracked">Example scenario</span>
             <select

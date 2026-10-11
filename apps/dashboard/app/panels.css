@@ -282,6 +282,9 @@ a.btn--ghost { border-color: var(--border); }
 
 /* The launcher has a fixed width and a fixed description height, so picking a scenario never resizes it. */
 .scan-launcher { display: grid; gap: 14px; padding: 20px; }
+.scan-drop { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 18px 12px; color: var(--text-muted); border: 2px dashed var(--border-strong); border-radius: var(--radius-sm); font: 700 0.9rem var(--font); text-align: center; }
+.scan-drop svg { width: 18px; height: 18px; flex: none; }
+.scan-launcher--drag .scan-drop { color: var(--brand); border-color: var(--brand); background: color-mix(in oklab, var(--brand) 10%, transparent); }
 .scan-example-picker { display: grid; gap: 8px; }
 .scan-example-picker select { width: 100%; min-height: 44px; padding: 0 36px 0 12px; color: var(--text); background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); font: 700 0.95rem var(--font); }
 .scan-example-picker small { display: -webkit-box; height: calc(3 * 1.35em); overflow: hidden; color: var(--text-muted); font-size: 0.85rem; line-height: 1.35; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
