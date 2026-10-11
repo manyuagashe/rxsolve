@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { handoffBlocker, type HandoffResult } from "@/lib/opportunityScan";
+import { handoffBlocker, handoffPolicyNote, previewMismatchNote, type HandoffResult, type SavedPolicy } from "@/lib/opportunityScan";
 
 const usd = (value: number) => value.toLocaleString("en-US", { style: "currency", currency: "USD" });
 const claimCount = (count: number) => `${count} ${count === 1 ? "claim" : "claims"}`;
@@ -11,17 +11,21 @@ type ScanHandoffProps = {
   /** The scanned file. The API scans it again itself instead of trusting this page's results. */
   csv: string;
   selectedIds: string[];
-  autoFileMax: number | null;
+  /** The policy the pipeline will apply; null until it loads. */
+  savedPolicy: SavedPolicy | null;
+  /** The what-if limit typed in the review queue. */
+  previewLimit: number | null;
 };
 
 /** Sends the selected claims into the real claim pipeline, after an explicit confirmation. */
-export function ScanHandoff({ csv, selectedIds, autoFileMax }: ScanHandoffProps) {
+export function ScanHandoff({ csv, selectedIds, savedPolicy, previewLimit }: ScanHandoffProps) {
   const [confirmed, setConfirmed] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<HandoffResult | null>(null);
 
-  const blocker = handoffBlocker({ selectedCount: selectedIds.length, autoFileMax, confirmed });
+  const blocker = handoffBlocker({ selectedCount: selectedIds.length, confirmed });
+  const mismatch = previewMismatchNote(savedPolicy, previewLimit);
 
   async function send() {
     setPending(true);
@@ -30,7 +34,7 @@ export function ScanHandoff({ csv, selectedIds, autoFileMax }: ScanHandoffProps)
       const response = await fetch("/api/opportunity-scan/handoff", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ csv, claim_ids: selectedIds, auto_file_max: autoFileMax }),
+        body: JSON.stringify({ csv, claim_ids: selectedIds }),
       });
       const body = await response.json().catch(() => null) as HandoffResult | { error?: string } | null;
       if (!response.ok || !body || !("accepted" in body)) {
@@ -49,12 +53,9 @@ export function ScanHandoff({ csv, selectedIds, autoFileMax }: ScanHandoffProps)
     <div className="scan-handoff">
       <label className="scan-handoff__confirm">
         <input type="checkbox" checked={confirmed} disabled={pending} onChange={(event) => setConfirmed(event.target.checked)} />
-        <span>
-          {autoFileMax === null
-            ? "This saves your auto-file limit and can file real appeals."
-            : `This saves ${usd(autoFileMax)} as your auto-file limit and can file real appeals.`}
-        </span>
+        <span>{handoffPolicyNote(savedPolicy)}</span>
       </label>
+      {mismatch && <small className="tone-warn">{mismatch}</small>}
       <div className="scan-handoff__action">
         <button className="btn" type="button" disabled={blocker !== null || pending} onClick={() => void send()}>
           {pending ? "Sending..." : `Send ${claimCount(selectedIds.length)} to RxSolve`}

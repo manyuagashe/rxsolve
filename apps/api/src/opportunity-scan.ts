@@ -83,7 +83,8 @@ type ScanOptions = {
 };
 
 const HEADER_ALIASES: Record<CanonicalHeader, string[]> = {
-  claim_id: ["claimid", "claimnumber", "rxreference", "rxnumber"],
+  // No "rxnumber": an Rx Number column is the optional rx_number field, not the claim ID.
+  claim_id: ["claimid", "claimnumber", "rxreference"],
   fill_date: ["filldate", "dateofservice", "servicedate"],
   ndc: ["ndc", "productid", "nationaldrugcode"],
   drug: ["drug", "drugname", "medication"],

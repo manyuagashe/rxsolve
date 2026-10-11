@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ScanHandoff } from "@/components/scan/ScanHandoff";
 import { Panel } from "@/components/ui/Panel";
 import {
@@ -11,6 +11,7 @@ import {
   reviewQueue,
   scanStatusPresentation,
   toggleSelected,
+  type SavedPolicy,
   type ScanClaim,
 } from "@/lib/opportunityScan";
 
@@ -22,13 +23,30 @@ type PolicySetupClaim = Pick<ScanClaim, "claim_id" | "drug" | "pbm" | "status" |
 /**
  * Review queue and policy preview for a finished scan. The pharmacist picks claims and a dollar
  * limit, sees which claims would file on their own and which would wait for approval, and can
- * then send the selection to the claim pipeline. `csv` is the scanned file's text.
+ * then send the selection to the claim pipeline. The limit is a what-if preview that starts at the
+ * saved policy; sending never changes the policy. `csv` is the scanned file's text.
  */
 export function PolicySetup({ claims, csv }: { claims: PolicySetupClaim[]; csv: string }) {
   const queue = reviewQueue(claims);
   // Ready claims start selected. Needs-review claims are opt-in because a person has to look at them.
   const [selectedIds, setSelectedIds] = useState<string[]>(() => readyClaimIds(queue));
   const [limitText, setLimitText] = useState(String(DEFAULT_AUTO_FILE_MAX));
+  const [limitEdited, setLimitEdited] = useState(false);
+  const [savedPolicy, setSavedPolicy] = useState<SavedPolicy | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/opportunity-scan/policy")
+      .then((response) => (response.ok ? response.json() as Promise<SavedPolicy> : null))
+      .then((policy) => { if (!cancelled && policy) setSavedPolicy(policy); })
+      .catch(() => {}); // the handoff still runs under the saved policy; the page just cannot name it
+    return () => { cancelled = true; };
+  }, []);
+
+  // Start the preview at the saved limit unless the pharmacist has already typed one.
+  useEffect(() => {
+    if (savedPolicy && !limitEdited) setLimitText(String(savedPolicy.auto_file_max));
+  }, [savedPolicy, limitEdited]);
 
   const autoFileMax = parseAutoFileMax(limitText);
   const preview = autoFileMax === null ? null : previewPolicy(queue, selectedIds, autoFileMax);
@@ -50,12 +68,12 @@ export function PolicySetup({ claims, csv }: { claims: PolicySetupClaim[]; csv: 
           value={limitText}
           aria-invalid={autoFileMax === null}
           aria-describedby="scan-policy-limit-help"
-          onChange={(event) => setLimitText(event.target.value)}
+          onChange={(event) => { setLimitEdited(true); setLimitText(event.target.value); }}
         />
         <small id="scan-policy-limit-help" className={autoFileMax === null ? "tone-bad" : undefined}>
           {autoFileMax === null
             ? "Enter a dollar amount such as 100 or 25.50."
-            : "Claims over this amount wait for your approval."}
+            : "Preview: claims over this amount would wait for your approval."}
         </small>
       </label>
 
@@ -97,7 +115,7 @@ export function PolicySetup({ claims, csv }: { claims: PolicySetupClaim[]; csv: 
         </div>
       )}
       <p className="scan-policy-note">Nothing is filed until you send claims to RxSolve. RxSolve then prices each claim from its own invoice records.</p>
-      <ScanHandoff csv={csv} selectedIds={selectedIds} autoFileMax={autoFileMax} />
+      <ScanHandoff csv={csv} selectedIds={selectedIds} savedPolicy={savedPolicy} previewLimit={autoFileMax} />
     </Panel>
   );
 }

@@ -9,9 +9,11 @@ import {
   DEFAULT_AUTO_FILE_MAX,
   EXAMPLE_SCANS,
   handoffBlocker,
+  handoffPolicyNote,
   MAX_HANDOFF_CLAIMS,
   MINIMUM_SCAN_DURATION_MS,
   parseAutoFileMax,
+  previewMismatchNote,
   previewPolicy,
   readyClaimIds,
   remainingScanDelay,
@@ -149,19 +151,31 @@ test("the handoff example is built around today so its claims are inside the app
 
 test("the send button explains what is still missing, in order", () => {
   expect(MAX_HANDOFF_CLAIMS).toBe(25);
-  expect(handoffBlocker({ selectedCount: 0, autoFileMax: 100, confirmed: true })).toBe("Select at least one claim.");
-  expect(handoffBlocker({ selectedCount: 26, autoFileMax: 100, confirmed: true })).toBe("Send 25 claims or fewer at a time.");
-  expect(handoffBlocker({ selectedCount: 2, autoFileMax: null, confirmed: true })).toBe("Enter a valid dollar limit.");
-  expect(handoffBlocker({ selectedCount: 2, autoFileMax: 100, confirmed: false })).toBe("Tick the box to confirm.");
-  expect(handoffBlocker({ selectedCount: 2, autoFileMax: 100, confirmed: true })).toBeNull();
+  expect(handoffBlocker({ selectedCount: 0, confirmed: true })).toBe("Select at least one claim.");
+  expect(handoffBlocker({ selectedCount: 26, confirmed: true })).toBe("Send 25 claims or fewer at a time.");
+  expect(handoffBlocker({ selectedCount: 2, confirmed: false })).toBe("Tick the box to confirm.");
+  expect(handoffBlocker({ selectedCount: 2, confirmed: true })).toBeNull();
+});
+
+test("the handoff names the saved limit it runs under, and flags a preview that differs", () => {
+  const saved = { auto_file_max: 100, paused: false };
+
+  expect(handoffPolicyNote(saved)).toBe("Claims over your saved $100.00 auto-file limit wait for your approval. Others can file real appeals.");
+  expect(handoffPolicyNote({ ...saved, paused: true })).toBe("Auto-filing is paused, so every claim will wait for your approval.");
+  expect(handoffPolicyNote(null)).toBe("Claims run under your saved auto-file limit and can file real appeals.");
+  expect(previewMismatchNote(saved, 100)).toBeNull();
+  expect(previewMismatchNote(saved, null)).toBeNull();
+  expect(previewMismatchNote(null, 250)).toBeNull();
+  expect(previewMismatchNote(saved, 250)).toBe("The limit above is a preview. Sending uses your saved $100.00 limit.");
 });
 
 test("the handoff control starts unconfirmed and says plainly that it files appeals", () => {
-  const html = renderToStaticMarkup(createElement(ScanHandoff, { csv: "csv text", selectedIds: ["A", "C"], autoFileMax: 100 }));
+  const html = renderToStaticMarkup(createElement(ScanHandoff, { csv: "csv text", selectedIds: ["A", "C"], savedPolicy: { auto_file_max: 100, paused: false }, previewLimit: 100 }));
 
   expect(html).toContain("Send 2 claims to RxSolve");
   expect(html).toContain("disabled=\"\"");
-  expect(html).toContain("This saves $100.00 as your auto-file limit and can file real appeals.");
+  expect(html).toContain("Claims over your saved $100.00 auto-file limit wait for your approval.");
+  expect(html).not.toContain("The limit above is a preview");
   expect(html).toContain("Tick the box to confirm.");
   expect(html).not.toContain("checked=\"\"");
   expect(html).not.toContain("—");

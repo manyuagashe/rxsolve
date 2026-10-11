@@ -174,25 +174,41 @@ export function previewPolicy<T extends QueueClaim>(
 }
 
 // --- Handoff to the claim pipeline -------------------------------------------------------------
-// Unlike the preview above, a handoff is real: the API stores the claims, saves the limit as the
-// pharmacy's policy, and the pipeline may file appeals.
+// Unlike the preview above, a handoff is real: the API stores the claims and the pipeline may file
+// appeals. It runs under the pharmacy's saved policy and never changes it, so the limit typed above
+// stays a what-if preview.
 
 /** Same cap as the API (apps/api/src/scan-handoff.ts). */
 export const MAX_HANDOFF_CLAIMS = 25;
 
+/** The saved standing authorization (GET /api/opportunity-scan/policy). */
+export type SavedPolicy = { auto_file_max: number; paused: boolean };
+
 export type HandoffResult = {
-  policy: { auto_file_max: number } | null;
+  policy: SavedPolicy;
   accepted: Array<{ claim_id: string; scan_shortfall: number; rxsolve_shortfall: number }>;
   rejected: Array<{ claim_id: string; reason: string }>;
 };
 
 /** Why the send button is disabled, or null when it can be pressed. */
-export function handoffBlocker(input: { selectedCount: number; autoFileMax: number | null; confirmed: boolean }): string | null {
+export function handoffBlocker(input: { selectedCount: number; confirmed: boolean }): string | null {
   if (input.selectedCount === 0) return "Select at least one claim.";
   if (input.selectedCount > MAX_HANDOFF_CLAIMS) return `Send ${MAX_HANDOFF_CLAIMS} claims or fewer at a time.`;
-  if (input.autoFileMax === null) return "Enter a valid dollar limit.";
   if (!input.confirmed) return "Tick the box to confirm.";
   return null;
+}
+
+/** The confirmation line: which limit a handoff actually runs under. */
+export function handoffPolicyNote(saved: SavedPolicy | null): string {
+  if (!saved) return "Claims run under your saved auto-file limit and can file real appeals.";
+  if (saved.paused) return "Auto-filing is paused, so every claim will wait for your approval.";
+  return `Claims over your saved ${dollars(saved.auto_file_max)} auto-file limit wait for your approval. Others can file real appeals.`;
+}
+
+/** Shown when the preview limit differs from the saved one, so the preview is not mistaken for the policy. */
+export function previewMismatchNote(saved: SavedPolicy | null, previewLimit: number | null): string | null {
+  if (!saved || previewLimit === null || previewLimit === saved.auto_file_max) return null;
+  return `The limit above is a preview. Sending uses your saved ${dollars(saved.auto_file_max)} limit.`;
 }
 
 const DAY_MS = 86_400_000;

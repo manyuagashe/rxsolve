@@ -15,7 +15,7 @@ import { deadlineFor } from "./deadlines";
 import { bus } from "./events";
 import { scanOpportunityCsv, suggestOpportunityHeaders, type OpportunityClaim } from "./opportunity-scan";
 import { processClaimSafe } from "./orchestrator";
-import { getPolicy, setPolicy } from "./policy";
+import { getPolicy } from "./policy";
 import { contractUnit, drugName, invoice, nadacUnit } from "./reference";
 
 export const MAX_HANDOFF_CLAIMS = 25;
@@ -25,11 +25,12 @@ export type HandoffConversion = { ok: true; claim: Claim } | { ok: false; reason
 export type HandoffAccepted = { claim_id: string; scan_shortfall: number; rxsolve_shortfall: number };
 export type HandoffRejected = { claim_id: string; reason: string };
 export type HandoffResult = {
-  policy: { auto_file_max: number } | null;
+  /** The pharmacy's saved standing authorization the pipeline applies. The handoff never changes it. */
+  policy: { auto_file_max: number; paused: boolean };
   accepted: HandoffAccepted[];
   rejected: HandoffRejected[];
 };
-export type HandoffRequest = { csv: string; claimIds: string[]; autoFileMax: number };
+export type HandoffRequest = { csv: string; claimIds: string[] };
 
 const money = (value: number) => Math.round(value * 100) / 100;
 const reject = (reason: string): HandoffConversion => ({ ok: false, reason });
@@ -78,7 +79,10 @@ export function toHandoffClaim(row: OpportunityClaim, opts: { now: Date; pharmac
   return { ok: true, claim };
 }
 
-/** Re-scans the file, saves the chosen limit as the pharmacy's policy, and queues accepted claims. */
+/**
+ * Re-scans the file and queues accepted claims under the pharmacy's saved policy. The scan page's
+ * limit is a preview only: writing it here would also change how live feed claims are gated.
+ */
 export async function handoffScanClaims(request: HandoffRequest, now = new Date()): Promise<HandoffResult> {
   const scan = await scanOpportunityCsv(request.csv, {
     now,
@@ -113,11 +117,8 @@ export async function handoffScanClaims(request: HandoffRequest, now = new Date(
     accepted.push({ claim, summary: { claim_id: claimId, scan_shortfall: row.shortfall, rxsolve_shortfall: rxsolveShortfall } });
   }
 
-  if (accepted.length === 0) return { policy: null, accepted: [], rejected };
-
-  // Save the limit before any claim runs, so the gate applies it to every claim in this handoff.
-  const policy = await getPolicy(config.pharmacyId);
-  await setPolicy({ ...policy, auto_file_max: request.autoFileMax });
+  const saved = await getPolicy(config.pharmacyId);
+  const policy = { auto_file_max: saved.auto_file_max, paused: saved.paused };
 
   for (const { claim } of accepted) {
     await db.claims.upsert(claim);
@@ -126,7 +127,7 @@ export async function handoffScanClaims(request: HandoffRequest, now = new Date(
   }
 
   return {
-    policy: { auto_file_max: request.autoFileMax },
+    policy,
     accepted: accepted.map((entry) => entry.summary),
     rejected,
   };

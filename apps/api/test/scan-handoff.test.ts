@@ -13,7 +13,7 @@ import { bus } from "../src/events";
 import { resetLedger } from "../src/ledger";
 import { ledgerSummary } from "../src/ledger/settle";
 import { scanOpportunityCsv, type OpportunityClaim } from "../src/opportunity-scan";
-import { getPolicy } from "../src/policy";
+import { getPolicy, setPolicy } from "../src/policy";
 import { MAX_HANDOFF_CLAIMS, toHandoffClaim } from "../src/scan-handoff";
 import { bootstrap, startApi } from "../src/server";
 
@@ -52,6 +52,13 @@ describe("scan CSV optional columns", () => {
     const result = await scanOpportunityCsv(`${HEADER},Quantity,Rx Number,Plan\n${VALUES},90,7001001,NC Commercial\n`, { now: NOW });
 
     expect(result.claims[0]).toMatchObject({ quantity: 90, rx_number: "7001001", plan: "NC Commercial", status: "READY" });
+  });
+
+  test("an Rx Number column before Claim ID is read as the Rx number, not the claim ID", async () => {
+    const result = await scanOpportunityCsv(`Rx Number,${HEADER}\n7001001,${VALUES}\n`, { now: NOW });
+
+    expect(result.parser.mapped_headers.claim_id).toBe("Claim ID");
+    expect(result.claims[0]).toMatchObject({ claim_id: "H-1", rx_number: "7001001" });
   });
 
   test("a file without the optional columns still scans and reports them as null", async () => {
@@ -188,11 +195,11 @@ describe("POST /api/opportunity-scan/handoff", () => {
   }
 
   test("an in-policy claim is filed by the existing pipeline and settles on the ledger", async () => {
-    const response = await handoff({ csv: csv(), claim_ids: ["HAND-001"], auto_file_max: 100 });
+    const response = await handoff({ csv: csv(), claim_ids: ["HAND-001"] });
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
-      policy: { auto_file_max: 100 },
+      policy: { auto_file_max: 100, paused: false },
       accepted: [{ claim_id: "HAND-001", scan_shortfall: 5.9, rxsolve_shortfall: 5.9 }],
       rejected: [],
     });
@@ -201,27 +208,44 @@ describe("POST /api/opportunity-scan/handoff", () => {
     expect(bus.history().some((event) => event.type === "claim.received" && event.claim_id === "HAND-001")).toBe(true);
   });
 
-  test("the chosen limit becomes the saved policy and stops an over-limit claim as an exception", async () => {
-    await handoff({ csv: csv(), claim_ids: ["HAND-001", "HAND-002"], auto_file_max: 50 });
+  test("the saved policy gates handoff claims and stops an over-limit claim as an exception", async () => {
+    await setPolicy({ ...(await getPolicy(config.pharmacyId)), auto_file_max: 50 });
 
+    const response = await handoff({ csv: csv(), claim_ids: ["HAND-001", "HAND-002"] });
+
+    expect((await response.json() as { policy: unknown }).policy).toEqual({ auto_file_max: 50, paused: false });
     expect(await terminalStage("HAND-002")).toBe("EXCEPTION");
     expect(await terminalStage("HAND-001")).toBe("SETTLED");
-    expect((await getPolicy(config.pharmacyId)).auto_file_max).toBe(50);
     expect(await getDb().appeals.find({ claim_id: "HAND-002" })).toEqual([]);
   });
 
+  test("a handoff never changes the saved policy, even when a limit is sent", async () => {
+    await handoff({ csv: csv(), claim_ids: ["HAND-001", "HAND-002"], auto_file_max: 500 });
+
+    expect(await terminalStage("HAND-002")).toBe("EXCEPTION"); // $130.00 is still over the saved $100
+    expect((await getPolicy(config.pharmacyId)).auto_file_max).toBe(100);
+  });
+
+  test("the policy route reports the saved limit", async () => {
+    await setPolicy({ ...(await getPolicy(config.pharmacyId)), auto_file_max: 75 });
+
+    const response = await fetch(`${api.url}/api/opportunity-scan/policy`);
+
+    expect(await response.json()).toEqual({ auto_file_max: 75, paused: false });
+  });
+
   test("a needs-review claim goes to the pharmacist instead of being filed", async () => {
-    await handoff({ csv: csv(), claim_ids: ["HAND-005"], auto_file_max: 100 });
+    await handoff({ csv: csv(), claim_ids: ["HAND-005"] });
 
     expect(await terminalStage("HAND-005")).toBe("EXCEPTION");
     expect(await getDb().appeals.find({ claim_id: "HAND-005" })).toEqual([]);
   });
 
   test("rows the server would not file are rejected with a reason and never stored", async () => {
-    const response = await handoff({ csv: csv(), claim_ids: ["HAND-003", "HAND-004", "HAND-404"], auto_file_max: 100 });
+    const response = await handoff({ csv: csv(), claim_ids: ["HAND-003", "HAND-004", "HAND-404"] });
 
     expect(await response.json()).toEqual({
-      policy: null,
+      policy: { auto_file_max: 100, paused: false },
       accepted: [],
       rejected: [
         { claim_id: "HAND-003", reason: "RxSolve has no invoice on file for this drug." },
@@ -234,10 +258,10 @@ describe("POST /api/opportunity-scan/handoff", () => {
   });
 
   test("a claim already in RxSolve is never overwritten", async () => {
-    await handoff({ csv: csv(), claim_ids: ["HAND-001"], auto_file_max: 100 });
+    await handoff({ csv: csv(), claim_ids: ["HAND-001"] });
     await terminalStage("HAND-001");
 
-    const again = await handoff({ csv: csv(), claim_ids: ["HAND-001"], auto_file_max: 100 });
+    const again = await handoff({ csv: csv(), claim_ids: ["HAND-001"] });
 
     expect((await readBody(again)).rejected).toEqual([{ claim_id: "HAND-001", reason: "This claim is already in RxSolve." }]);
     expect((await getDb().claims.get("HAND-001"))?.stage).toBe("SETTLED");
@@ -247,19 +271,17 @@ describe("POST /api/opportunity-scan/handoff", () => {
   test("a claim ID that appears twice in the file is rejected", async () => {
     const duplicated = `${csv()}\n${csv().split("\n")[1]}`;
 
-    const response = await handoff({ csv: duplicated, claim_ids: ["HAND-001"], auto_file_max: 100 });
+    const response = await handoff({ csv: duplicated, claim_ids: ["HAND-001"] });
 
     expect((await readBody(response)).rejected).toEqual([{ claim_id: "HAND-001", reason: "This claim ID appears more than once in the file." }]);
   });
 
   test.each([
-    [{ claim_ids: ["HAND-001"], auto_file_max: 100 }, "csv must be a non-empty string"],
-    [{ csv: "x", claim_ids: [], auto_file_max: 100 }, "claim_ids must list between 1 and 25 claim IDs"],
-    [{ csv: "x", claim_ids: "HAND-001", auto_file_max: 100 }, "claim_ids must list between 1 and 25 claim IDs"],
-    [{ csv: "x", claim_ids: Array.from({ length: MAX_HANDOFF_CLAIMS + 1 }, (_, i) => `C-${i}`), auto_file_max: 100 }, "claim_ids must list between 1 and 25 claim IDs"],
-    [{ csv: "x", claim_ids: ["HAND-001"] }, "auto_file_max must be a non-negative dollar amount"],
-    [{ csv: "x", claim_ids: ["HAND-001"], auto_file_max: -1 }, "auto_file_max must be a non-negative dollar amount"],
-    [{ csv: "not,a,claims,file\n1,2,3,4", claim_ids: ["HAND-001"], auto_file_max: 100 }, "CSV is missing required columns"],
+    [{ claim_ids: ["HAND-001"] }, "csv must be a non-empty string"],
+    [{ csv: "x", claim_ids: [] }, "claim_ids must list between 1 and 25 claim IDs"],
+    [{ csv: "x", claim_ids: "HAND-001" }, "claim_ids must list between 1 and 25 claim IDs"],
+    [{ csv: "x", claim_ids: Array.from({ length: MAX_HANDOFF_CLAIMS + 1 }, (_, i) => `C-${i}`) }, "claim_ids must list between 1 and 25 claim IDs"],
+    [{ csv: "not,a,claims,file\n1,2,3,4", claim_ids: ["HAND-001"] }, "CSV is missing required columns"],
   ])("bad request %#", async (body, message) => {
     const response = await handoff(body);
 
@@ -306,7 +328,7 @@ describe("the dashboard's handoff example", () => {
     const response = await fetch(`${api.url}/api/opportunity-scan/handoff`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ csv: buildHandoffExampleCsv(new Date()), claim_ids: ids, auto_file_max: 100 }),
+      body: JSON.stringify({ csv: buildHandoffExampleCsv(new Date()), claim_ids: ids }),
     });
     const body = await response.json() as { accepted: Array<{ claim_id: string; scan_shortfall: number; rxsolve_shortfall: number }>; rejected: unknown[] };
 
