@@ -33,6 +33,7 @@ Three PBM personas, each modeled on a real PBM's public appeal procedure. Open b
 4. **Ledger.** Remittance adjustments and fee transfers move real Nessie balances, and the recovered-over-time chart (TigerData continuous aggregate) steps up with each settlement.
 5. **Digest.** The pharmacist's phone receives the daily digest. One word replies. (Stretch: it carries a voice recap.)
 6. **Exception (live).** One claim is outside the standing policy and pings the pharmacist.
+6b. **Historical scan (optional, ~20s).** Open `/scan`, pick **Ready for RxSolve handoff**, run it, and say: "Here is last month's file: this much was underpaid and this much is recoverable." Send the ready claims; they join the same pipeline under the saved $100 policy (three settle, the $130 one waits as an exception, the drug with no invoice is rejected).
 7. **Stretch: phone (ElevenLabs).** On a disputed denial, the agent calls the PBM rep and wins the argument on the statute.
 
 | Moment | What it proves |
