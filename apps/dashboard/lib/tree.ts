@@ -223,6 +223,16 @@ export function deriveTree(
   };
 }
 
+/** Card label for a node: the missing-field steps name the actual missing item once the PBM's denial said which. */
+export function nodeLabel(id: NodeId, label: string, rounds: readonly { n: number; decision: Decision }[]): string {
+  const parts = splitRid(id);
+  if (!parts || (parts.base !== "missing_field" && parts.base !== "refile_mf")) return label;
+  const field = rounds.find((r) => r.n === parts.n)?.decision.field;
+  if (!field) return label;
+  const what = plainField(field);
+  return parts.base === "missing_field" ? `Missing ${what}: ask the wholesaler for it` : `File again with the ${what}`;
+}
+
 function pathText(node: NodeId, decision?: Decision, action?: Action, n?: number): string {
   const parts = splitRid(node);
   const base = parts?.base ?? node;

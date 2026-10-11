@@ -411,6 +411,13 @@ a.attachment:hover { box-shadow: 0 0 0 3px color-mix(in oklab, var(--brand) 30%,
 .artifacts { margin-top: 6px; font-size: 0.85rem; }
 .artifacts > summary { cursor: pointer; color: var(--accent); font-weight: 700; border-radius: var(--radius-sm); width: fit-content; }
 .artifacts__list { display: grid; gap: 10px; margin-top: 6px; }
+/* Floating variant of the list, portalled to the body so the tree's scroll box cannot clip it */
+.artifacts__pop {
+  position: fixed; z-index: 1000; display: grid; gap: 10px; width: min(440px, 70vw); margin: 0; overflow: auto;
+  padding: 12px; font-size: 0.85rem; color: var(--text); background: var(--surface); border: 1px solid var(--brand);
+  border-radius: var(--radius-sm); box-shadow: var(--shadow-raised);
+  backdrop-filter: blur(var(--blur)); -webkit-backdrop-filter: blur(var(--blur));
+}
 .artifact { padding: 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--inset-surface); }
 .artifact__label { margin: 0 0 4px; overflow-wrap: anywhere; }
 .artifact__frame { display: block; width: 100%; height: 320px; border: 1px solid var(--border); background: #fff; }
@@ -508,6 +515,8 @@ a.attachment:hover { box-shadow: 0 0 0 3px color-mix(in oklab, var(--brand) 30%,
 .tree-links .link--taken { stroke: var(--brand); stroke-width: 3; stroke-dasharray: 14 6; filter: drop-shadow(0 0 3px var(--brand)); animation: trace-flow 1.2s linear infinite; }
 .tree-links .link--active { stroke: var(--warn-fill); stroke-width: 3; stroke-dasharray: 8 6; animation: trace-flow 0.8s linear infinite; }
 @keyframes trace-flow { to { stroke-dashoffset: -40; } }
+/* Once the pipeline has ended nothing is in flight: travelled traces are solid and still; untaken ones stay dashed. */
+.tree-canvas--ended .link--taken, .tree-canvas--ended .link--active { stroke-dasharray: none; animation: none; }
 @media (min-width: 900px) { .tree-links { display: block; } }
 
 @media (max-width: 800px) {
